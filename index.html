@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Binary Pulsar Timing Calculator</title>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script>
+MathJax={tex:{inlineMath:[['$','$']],displayMath:[['$$','$$']]},options:{skipHtmlTags:['script','noscript','style','textarea','pre']}};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,'Segoe UI',system-ui,sans-serif;font-size:14px;display:flex;flex-direction:column}
+
+#hdr{background:#161b22;border-bottom:1px solid #30363d;padding:8px 14px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+#hdr h1{font-size:1.05rem;font-weight:700;color:#58a6ff;flex:1;white-space:nowrap}
+#preset{background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:5px 10px;font-size:0.85rem}
+
+#main{display:flex;flex:1;overflow:hidden}
+
+#panel{width:270px;min-width:270px;background:#161b22;border-right:1px solid #30363d;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:10px}
+.psec h3{font-size:0.76rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#58a6ff;margin-bottom:7px;padding-bottom:4px;border-bottom:1px solid #21262d}
+.prow{margin-bottom:6px}
+.prow .prow-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}
+.prow .prow-top label{font-size:0.82rem;color:#8b949e}
+.prow .prow-top .pval-wrap{display:flex;align-items:center;gap:3px}
+.pnum{width:68px;background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:2px 5px;font-size:0.82rem;border-radius:4px;text-align:right;font-variant-numeric:tabular-nums;font-family:inherit}
+.pnum:focus{border-color:#58a6ff;outline:none}
+.punit{font-size:0.78rem;color:#8b949e}
+.prow input[type=range]{width:100%;height:5px;accent-color:#58a6ff;cursor:pointer;margin-top:2px}
+
+.dgrid{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:baseline}
+.dk{color:#8b949e;font-size:0.8rem;white-space:nowrap}
+.dv{color:#e6edf3;font-size:0.84rem;font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.dv.grn{color:#3fb950}
+.dv.red{color:#f85149}
+.dv.ylw{color:#e3b341}
+
+.live-box{background:#0d1117;border-radius:6px;padding:8px;margin-top:2px}
+
+#viewport{display:flex;flex-direction:column;flex:1;min-width:0}
+
+#c3d{position:relative;flex:1;min-height:0;overflow:hidden}
+#c3d canvas{display:block}
+
+.legend-3d{position:absolute;top:8px;right:10px;background:rgba(13,17,23,0.82);border:1px solid #30363d;border-radius:6px;padding:6px 10px;font-size:0.76rem;line-height:1.8;pointer-events:none}
+.anim-bar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(22,27,34,0.92);border:1px solid #30363d;border-radius:18px;padding:5px 16px;display:flex;align-items:center;gap:12px;font-size:0.82rem;white-space:nowrap}
+.anim-bar button{background:#21262d;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;padding:3px 12px;cursor:pointer;font-size:0.88rem}
+.anim-bar button:hover{background:#30363d}
+.anim-bar button.locked{background:#1a4d2e;border-color:#2ea043;color:#3fb950}
+.anim-bar input[type=range]{width:80px;height:5px;accent-color:#58a6ff}
+
+#plot-wrap{height:36%;min-height:140px;border-top:1px solid #30363d;display:flex;flex-direction:column}
+#plot-tabs{display:flex;flex-shrink:0;border-bottom:1px solid #21262d;background:#161b22}
+.ptab{flex:1;padding:5px;text-align:center;font-size:0.76rem;font-weight:600;cursor:pointer;color:#8b949e;border-bottom:2px solid transparent;transition:all .15s}
+.ptab:hover{color:#c9d1d9}
+.ptab.on{color:#58a6ff;border-color:#58a6ff}
+#plot-box{flex:1;position:relative;overflow:hidden}
+#plot-cv{display:block;position:absolute;inset:0}
+
+#formulae-panel{display:none;position:absolute;inset:0;overflow-y:auto;padding:18px 22px;background:#0d1117;color:#c9d1d9;font-size:0.92rem;line-height:1.8}
+#formulae-panel h3{color:#58a6ff;font-size:1rem;margin:16px 0 8px;border-bottom:1px solid #21262d;padding-bottom:4px}
+#formulae-panel h3:first-child{margin-top:0}
+#formulae-panel .note{font-size:0.82rem;color:#8b949e;margin-top:4px}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <h1>Binary Pulsar Timing Calculator</h1>
+  <select id="preset">
+    <option value="">Presets</option>
+    <option value="J0737" selected>J0737-3039A (Double Pulsar)</option>
+    <option value="B1913">B1913+16 (Hulse-Taylor)</option>
+    <option value="J1614">J1614-2230 (High mass WD)</option>
+    <option value="PSRBH">PSR-BH (NS-BH)</option>
+  </select>
+</div>
+
+<div id="main">
+<aside id="panel">
+  <div class="psec"><h3>System Parameters</h3><div id="sliders"></div></div>
+  <div class="psec"><h3>Post-Keplerian Parameters</h3><div class="dgrid" id="pk"></div></div>
+  <div class="psec"><h3>Orbital Geometry</h3><div class="dgrid" id="og"></div></div>
+  <div class="psec"><h3>Live Delays</h3><div class="live-box"><div class="dgrid" id="ld"></div></div></div>
+</aside>
+
+<div id="viewport">
+  <div id="c3d">
+    <div class="legend-3d">
+      <div style="color:#79c0ff">&#9679; Pulsar (beamed)</div>
+      <div style="color:#ffa657" id="comp-legend">&#9679; Companion</div>
+      <label style="display:flex;align-items:center;gap:5px;margin-top:3px;cursor:pointer;pointer-events:auto;color:#66bbff">
+        <input type="checkbox" id="grid-toggle" checked> Orbital plane grid
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;pointer-events:auto;color:#00e088">
+        <input type="checkbox" id="sheet-toggle" checked> Spacetime curvature
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;pointer-events:auto;color:#ffd54f">
+        <input type="checkbox" id="sun-toggle"> &#9788; Show Sun (to scale)
+      </label>
+      <div style="margin-top:3px;pointer-events:auto;display:flex;align-items:center;gap:5px">
+        <span style="color:#8b949e;font-size:0.72rem">Evolve to:</span>
+        <select id="evolve-sel" style="background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;padding:1px 4px;font-size:0.72rem">
+          <option value="">— now —</option>
+          <option value="0.5">50% to merger</option>
+          <option value="0.1">10% to merger</option>
+          <option value="0.01">1% to merger</option>
+          <option value="0.001">0.1% to merger</option>
+        </select>
+      </div>
+    </div>
+    <div class="anim-bar">
+      <button id="play-btn">&#9208;</button>
+      <span>Speed</span>
+      <input id="spd-sl" type="range" min="0" max="100" step="1" value="28">
+      <span id="spd-v">0.25x</span>
+      <span>Phase <span id="ph-v" style="color:#e3b341;font-weight:700">0.000</span></span>
+      <button id="lock-btn" title="Lock camera to observer line of sight (matches inclination slider)">&#128274; Lock</button>
+    </div>
+  </div>
+  <div id="plot-wrap">
+    <div id="plot-tabs">
+      <div class="ptab on" data-v="shapiro">Shapiro (&mu;s)</div>
+      <div class="ptab" data-v="roemer">Roemer (ms)</div>
+      <div class="ptab" data-v="einstein">Einstein (ms)</div>
+      <div class="ptab" data-v="total">Total (ms)</div>
+      <div class="ptab" data-v="radvel">Radial Vel (km/s)</div>
+      <div class="ptab" data-v="formulae">Formulae</div>
+    </div>
+    <div id="plot-box">
+      <canvas id="plot-cv"></canvas>
+      <div id="formulae-panel">
+        <h3>Periastron Advance</h3>
+        $$\dot{\omega} = \frac{3}{1-e^2}\left(\frac{2\pi}{P_b}\right)^{5/3}\left(T_\odot\, M\right)^{2/3}$$
+        <div class="note">where $T_\odot = GM_\odot/c^3 = 4.925491\;\mu\text{s}$ and $M = m_1 + m_2$ in solar masses.</div>
+
+        <h3>Einstein Delay Amplitude</h3>
+        $$\gamma = e\; T_\odot^{2/3}\left(\frac{P_b}{2\pi}\right)^{1/3}\frac{m_2\left(m_1 + 2m_2\right)}{M^{4/3}}$$
+
+        <h3>Orbital Period Derivative (GW emission)</h3>
+        $$\dot{P}_b = -\frac{192\pi}{5}\;T_\odot^{5/3}\left(\frac{2\pi}{P_b}\right)^{5/3} f(e)\;\frac{m_1\,m_2}{M^{1/3}}$$
+        $$f(e) = \frac{1 + \tfrac{73}{24}e^2 + \tfrac{37}{96}e^4}{\left(1-e^2\right)^{7/2}}$$
+
+        <h3>Merger Time (Peters 1964)</h3>
+        $$T_{\rm merge} = \frac{12}{19}\;\frac{c_0^{\,4}}{\beta}\int_0^{e_0}\frac{e'^{\,29/19}\left(1+\tfrac{121}{304}e'^{\,2}\right)^{1181/2299}}{\left(1-e'^{\,2}\right)^{3/2}}\,de'$$
+        $$\beta = \frac{64}{5}\frac{G^3\,m_1\,m_2\,M}{c^5},\qquad c_0 = \frac{a_0\left(1-e_0^2\right)}{e_0^{\,12/19}\left(1+\tfrac{121}{304}e_0^2\right)^{870/2299}}$$
+        <div class="note">Numerically integrated with trapezoidal rule ($N=2000$ steps).</div>
+
+        <h3>Shapiro Delay</h3>
+        $$\Delta t_S = -2r\;\ln\!\Big(1 - s\,\sin(\omega+\nu)\Big)$$
+        $$r = T_\odot\,m_2,\qquad s = \sin i$$
+
+        <h3>Roemer Delay</h3>
+        $$\Delta t_R = x\Big[\sin\omega\,(\cos E - e) + \sqrt{1-e^2}\,\cos\omega\,\sin E\Big]$$
+        $$x = a_1\sin i / c \quad\text{(projected semi-major axis)}$$
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+
+/* ================================================================
+   CONSTANTS
+   ================================================================ */
+const Tsun = 4.92549094830932e-6;
+const Cc   = 299792458;
+const Gc   = 6.674e-11;
+const Msun = 1.989e30;
+const AU   = 1.496e11;
+const YR   = 365.25*86400;
+const TAU  = 2*Math.PI;
+
+/* ================================================================
+   PRESETS
+   ================================================================ */
+const PRE = {
+  J0737:  {m1:1.338, m2:1.249, Pb_h:2.4544, e:0.0877775, i_deg:88.7, omega_deg:73.8},
+  B1913:  {m1:1.4408,m2:1.3886,Pb_h:7.75195,e:0.6171334, i_deg:47.2, omega_deg:292.5},
+  J1614:  {m1:1.97,  m2:0.5,   Pb_h:8.6866, e:0.00002,   i_deg:89.17,omega_deg:0},
+  PSRBH:  {m1:1.4,   m2:8.0,   Pb_h:1.4,    e:0.6,       i_deg:60.0, omega_deg:90.0},
+};
+
+/* ================================================================
+   SLIDER CONFIG
+   ================================================================ */
+const SL = [
+  {k:'m1',    lbl:'m\u2081 (pulsar)',    u:'M\u2609', mn:0.5, mx:3,   st:0.001, d:1.338},
+  {k:'m2',    lbl:'m\u2082 (companion)', u:'M\u2609', mn:0.001,mx:20, st:0.001, d:1.249},
+  {k:'Pb_h',  lbl:'P\u1D47',             u:'h',       mn:0.1, mx:200, st:0.001, d:2.4544},
+  {k:'e',     lbl:'Eccentricity e',      u:'',        mn:0,   mx:0.99,st:0.001, d:0.0877775},
+  {k:'i_deg', lbl:'Inclination i',       u:'\u00B0',  mn:0.1, mx:89.9,st:0.1,   d:88.7},
+  {k:'omega_deg',lbl:'Periastron \u03C9',u:'\u00B0',  mn:0,   mx:360, st:0.5,   d:73.8},
+];
+
+/* ================================================================
+   STATE
+   ================================================================ */
+const P = {};
+let D = null;
+let pView = 'shapiro';
+let animM = 0;
+let playing = true;
+let spd = 0.25;
+let lastT = null;
+let pCache = null;
+let viewLocked = false;
+let savedPb_h = null, savedE = null;  // stash originals before evolving
+let showSun = false;
+const R_SUN_LS = 6.957e8 / Cc;  // Sun radius in light-seconds (~2.32 s)
+
+/* ================================================================
+   PHYSICS
+   ================================================================ */
+function kepler(M, e) {
+  let E = M + e*Math.sin(M);
+  for (let k=0;k<80;k++){
+    const dE=(M-E+e*Math.sin(E))/(1-e*Math.cos(E));
+    E+=dE;
+    if(Math.abs(dE)<1e-14)break;
+  }
+  return E;
+}
+
+function calc(p) {
+  const {m1,m2,Pb_h,e,i_deg,omega_deg}=p;
+  const Pb=Pb_h*3600, i=i_deg*Math.PI/180, w=omega_deg*Math.PI/180;
+  const Mt=m1+m2, e2=e*e, n=TAU/Pb;
+  const a_ls=(Tsun*Mt)**(1/3)*(Pb/TAU)**(2/3);
+  const a_m=a_ls*Cc;
+  const a1_ls=a_ls*m2/Mt;
+  const x=a1_ls*Math.sin(i);
+  const gamma=e*Tsun**(2/3)*(Pb/TAU)**(1/3)*m2*(m1+2*m2)/Mt**(4/3);
+  const wdot=3*n**(5/3)*(Tsun*Mt)**(2/3)/(1-e2);
+  const fe=(1+73/24*e2+37/96*e2*e2)/(1-e2)**(7/2);
+  const Pbdot=-(192*Math.PI/5)*Tsun**(5/3)*n**(5/3)*fe*m1*m2/Mt**(1/3);
+  const rs=Tsun*m2, ss=Math.sin(i);
+  const beta=(64/5)*Gc**3*m1*m2*Mt*Msun**3/Cc**5;
+  const Tmrg=peters(a_m,e,beta);
+
+  // Peak-to-peak Roemer delay (scan E)
+  let rMax=-1e30, rMin=1e30;
+  const sq=Math.sqrt(1-e2);
+  for(let k=0;k<=360;k++){
+    const E=k/360*TAU;
+    const A=Math.sin(w)*(Math.cos(E)-e)+sq*Math.cos(w)*Math.sin(E);
+    const r=x*A;
+    if(r>rMax)rMax=r;
+    if(r<rMin)rMin=r;
+  }
+  const roemer_pp=rMax-rMin;
+
+  return {
+    e,i,w,m1,m2,Mt,Pb,n,
+    a_ls,a_AU:a_m/AU,a1_ls,x,
+    rperi:a_m*(1-e)/AU, rapo:a_m*(1+e)/AU,
+    gamma, gamma_ms:gamma*1e3,
+    wdot_dyr:wdot*(180/Math.PI)*YR,
+    wdot_dorb:wdot*(180/Math.PI)*Pb,
+    Pbdot_12:Pbdot*1e12,
+    rs, rs_us:rs*1e6, ss,
+    Tmrg_Myr:Tmrg/YR/1e6,
+    roemer_pp,
+  };
+}
+
+function peters(a,e,beta){
+  if(e<0.01) return a**4/(4*beta);
+  const e2=e*e;
+  const c0=a*(1-e2)*e**(-12/19)*(1+121/304*e2)**(-870/2299);
+  const N=2000, de=e/N;
+  let I=0;
+  for(let k=0;k<=N;k++){
+    const ee=k===0?1e-15:k*de;
+    if(1-ee*ee<=0)break;
+    const f=ee**(29/19)*(1+121/304*ee*ee)**(1181/2299)/(1-ee*ee)**1.5;
+    I+=(k===0||k===N)?0.5*f:f;
+  }
+  return (12/19)*c0**4/beta*(I*de);
+}
+
+function dly(E,d){
+  const{e,w,gamma,x,rs,ss}=d;
+  const cE=Math.cos(E),sE=Math.sin(E),sq=Math.sqrt(1-e*e);
+  const A=Math.sin(w)*(cE-e)+sq*Math.cos(w)*sE;
+  const roemer=x*A;
+  const einstein=gamma*sE;
+  const sinWN=A/Math.max(1e-15,1-e*cE);
+  const shapiro=-2*rs*Math.log(Math.max(1e-15,1-ss*sinWN));
+  return{roemer,einstein,shapiro,total:roemer+einstein+shapiro};
+}
+
+function radvel(E,d){
+  const{e,w,m1,m2,Pb,x,a_ls,Mt,i}=d;
+  const sq=Math.sqrt(1-e*e);
+  const cE=Math.cos(E),sE=Math.sin(E);
+  const nu=Math.atan2(sq*sE,cE-e);
+  const cosWN=Math.cos(w+nu);
+  const eCosW=e*Math.cos(w);
+  // Semi-amplitudes [m/s]
+  const K1=TAU*x*Cc/(Pb*sq);
+  const K2=K1*m1/m2;
+  return{
+    vr1: K1*(cosWN+eCosW)/1e3,    // pulsar [km/s]
+    vr2:-K2*(cosWN+eCosW)/1e3,    // companion [km/s]
+    K1:K1/1e3, K2:K2/1e3,         // semi-amplitudes [km/s]
+  };
+}
+
+// Evolve binary forward via Peters equations to a fraction of remaining life
+// Returns new {Pb_h, e} or null if can't evolve
+function evolveGW(p, fraction){
+  // fraction=0.1 means evolve to when 10% of lifetime remains
+  const{m1,m2,Pb_h,e:e0,i_deg,omega_deg}=p;
+  const Mt=m1+m2, Pb0=Pb_h*3600;
+  const a0_ls=(Tsun*Mt)**(1/3)*(Pb0/TAU)**(2/3);
+  const a0=a0_ls*Cc;
+  const beta=(64/5)*Gc**3*m1*m2*Mt*Msun**3/Cc**5;
+  const Tmrg=peters(a0,e0,beta);
+  const tTarget=Tmrg*(1-fraction); // time to evolve forward
+  // Forward Euler integration
+  let a=a0, e=e0, t=0;
+  const dtStep=tTarget/5000;
+  for(let step=0;step<5000;step++){
+    const e2=e*e;
+    const denom_a=a**3*(1-e2)**3.5;
+    const denom_e=a**4*(1-e2)**2.5;
+    const da=-beta/denom_a*(1+73/24*e2+37/96*e2*e2);
+    const de=-(304/15)*Gc**3*m1*m2*Mt*Msun**3/(Cc**5*denom_e)*e*(1+121/304*e2);
+    a+=da*dtStep;
+    e+=de*dtStep;
+    if(e<0)e=0;
+    if(a<=0)break;
+    t+=dtStep;
+  }
+  // Convert back to Pb_h via Kepler's third law
+  const newPb=TAU*Math.sqrt(a**3/(Gc*Mt*Msun));  // wrong formula for Pb from a
+  // Correct: a^3 = G*Mt*Msun/(4pi^2) * Pb^2  =>  Pb = 2pi*sqrt(a^3/(G*Mt*Msun))
+  const Pb_new=TAU*Math.sqrt(a*a*a/(Gc*Mt*Msun));
+  return{Pb_h:Pb_new/3600, e:Math.max(0,e)};
+}
+
+function orb3(E,e,w,i){
+  const cE=Math.cos(E),sE=Math.sin(E),sq=Math.sqrt(1-e*e);
+  const nu=Math.atan2(sq*sE,cE-e);
+  const th=w+nu, r=(1-e*e)/(1+e*Math.cos(nu));
+  return new THREE.Vector3(r*Math.cos(th),r*Math.sin(th)*Math.cos(i),r*Math.sin(th)*Math.sin(i));
+}
+
+/* ================================================================
+   UI: Sliders + number inputs
+   ================================================================ */
+function buildSliders(){
+  const el=document.getElementById('sliders');
+  SL.forEach(s=>{
+    P[s.k]=s.d;
+    const div=document.createElement('div');
+    div.className='prow';
+    const dp=s.st<0.01?4:s.st<0.1?3:s.st<1?2:1;
+    div.innerHTML=`
+      <div class="prow-top">
+        <label>${s.lbl}</label>
+        <span class="pval-wrap">
+          <input type="number" class="pnum" id="n-${s.k}" min="${s.mn}" max="${s.mx}" step="${s.st}" value="${s.d}">
+          <span class="punit">${s.u}</span>
+        </span>
+      </div>
+      <input type="range" id="s-${s.k}" min="${s.mn}" max="${s.mx}" step="${s.st}" value="${s.d}">`;
+    el.appendChild(div);
+    const slider=div.querySelector('input[type=range]');
+    const numInput=div.querySelector('input[type=number]');
+    slider.addEventListener('input',()=>{
+      const v=parseFloat(slider.value);
+      P[s.k]=v; numInput.value=v;
+      onChange();
+    });
+    numInput.addEventListener('change',()=>{
+      let v=parseFloat(numInput.value);
+      if(isNaN(v))v=s.d;
+      v=Math.max(s.mn,Math.min(s.mx,v));
+      P[s.k]=v; numInput.value=v; slider.value=v;
+      onChange();
+    });
+  });
+}
+
+function setSliders(p){
+  SL.forEach(s=>{
+    const sl=document.getElementById('s-'+s.k);
+    const ni=document.getElementById('n-'+s.k);
+    if(!sl||!ni)return;
+    sl.value=p[s.k]; ni.value=p[s.k]; P[s.k]=p[s.k];
+  });
+}
+
+function fmtMerge(myr){
+  if(myr>=1000) return (myr/1000).toPrecision(4)+' Gyr';
+  if(myr>=1)    return myr.toPrecision(4)+' Myr';
+  if(myr>=0.001)return (myr*1000).toPrecision(4)+' kyr';
+  return (myr*1e6).toPrecision(4)+' yr';
+}
+
+function updatePK(d){
+  document.getElementById('pk').innerHTML=`
+    <span class="dk">\u03B3 (Einstein)</span><span class="dv grn">${d.gamma_ms.toFixed(4)} ms</span>
+    <span class="dk">\u03C9\u0307</span><span class="dv">${d.wdot_dyr.toFixed(4)} \u00B0/yr</span>
+    <span class="dk"></span><span class="dv">${d.wdot_dorb.toFixed(5)} \u00B0/orbit</span>
+    <span class="dk">P\u0307\u1D47</span><span class="dv red">${d.Pbdot_12.toFixed(4)} \u00D710\u207B\u00B9\u00B2</span>
+    <span class="dk">T<sub>merge</sub></span><span class="dv">${fmtMerge(d.Tmrg_Myr)}</span>
+    <span class="dk">r (Shapiro)</span><span class="dv">${d.rs_us.toFixed(3)} \u03BCs</span>
+    <span class="dk">s = sin(i)</span><span class="dv">${d.ss.toFixed(5)}</span>`;
+}
+
+function updateOG(d){
+  document.getElementById('og').innerHTML=`
+    <span class="dk">x = a\u2081sin(i)</span><span class="dv">${d.x.toFixed(4)} lt-s</span>
+    <span class="dk">Roemer pk-pk</span><span class="dv grn">${d.roemer_pp.toFixed(4)} s</span>
+    <span class="dk">a (total)</span><span class="dv">${d.a_AU<0.01?((d.a_ls*Cc/1e6).toFixed(1)+' Mm'):d.a_AU.toFixed(4)+' AU'}</span>
+    <span class="dk">a (total)</span><span class="dv">${d.a_ls.toFixed(4)} lt-s</span>
+    <span class="dk">r<sub>peri</sub></span><span class="dv">${d.rperi<0.01?((d.rperi*AU/1e6).toFixed(1)+' Mm'):d.rperi.toFixed(4)+' AU'}</span>
+    <span class="dk">r<sub>apo</sub></span><span class="dv">${d.rapo<0.01?((d.rapo*AU/1e6).toFixed(1)+' Mm'):d.rapo.toFixed(4)+' AU'}</span>`;
+}
+
+function updateLive(E,d){
+  const dl=dly(E,d);
+  const rv=radvel(E,d);
+  document.getElementById('ld').innerHTML=`
+    <span class="dk">\u0394t<sub>S</sub> (Shapiro)</span><span class="dv grn">${(dl.shapiro*1e6).toFixed(3)} \u03BCs</span>
+    <span class="dk">\u0394t<sub>R</sub> (Roemer)</span><span class="dv">${(dl.roemer*1e3).toFixed(3)} ms</span>
+    <span class="dk">\u0394t<sub>E</sub> (Einstein)</span><span class="dv ylw">${(dl.einstein*1e3).toFixed(4)} ms</span>
+    <span class="dk">Total delay</span><span class="dv">${(dl.total*1e3).toFixed(3)} ms</span>
+    <span class="dk">v<sub>r</sub> pulsar</span><span class="dv" style="color:#4da6ff">${rv.vr1.toFixed(1)} km/s</span>
+    <span class="dk">v<sub>r</sub> companion</span><span class="dv" style="color:#ff8844">${rv.vr2.toFixed(1)} km/s</span>`;
+}
+
+/* ================================================================
+   THREE.JS
+   ================================================================ */
+const VS=2.5;
+let ren,scn,cam,ctl;
+let pGrp,pSpinGrp,pSphere;            // pulsar group, spin sub-group, NS sphere
+let cGrp,cSphere,cSpinGrp,cDisk;      // companion group + type-specific
+let compType='';                        // 'wd','pulsar','bh'
+let coMsh;
+let pLn,cLn,pMat,cMat,oPlane,sepLn;
+let sheetMesh,sheetGeo,sheetBaseY;
+let sunMesh;
+let c3dEl;
+let pulsarSpinRate=2*Math.PI/2.5;       // one revolution per 2.5s
+
+function init3(){
+  c3dEl=document.getElementById('c3d');
+  ren=new THREE.WebGLRenderer({antialias:true});
+  ren.setPixelRatio(window.devicePixelRatio);
+  ren.setClearColor(0x0d1117);
+  ren.setSize(c3dEl.clientWidth,c3dEl.clientHeight);
+  c3dEl.appendChild(ren.domElement);
+
+  scn=new THREE.Scene();
+  cam=new THREE.PerspectiveCamera(40,c3dEl.clientWidth/c3dEl.clientHeight,0.01,2000);
+  cam.position.set(2.5,2,6);
+  ctl=new OrbitControls(cam,ren.domElement);
+  ctl.enableDamping=true;
+  ctl.dampingFactor=0.06;
+
+  scn.add(new THREE.AmbientLight(0x303050,3.5));
+  const dl=new THREE.DirectionalLight(0xffffff,2);
+  dl.position.set(4,8,6);scn.add(dl);
+
+  // Sky plane grid
+  const gr=new THREE.GridHelper(10,10,0x1e2d40,0x182030);
+  gr.rotation.x=-Math.PI/2;
+  scn.add(gr);
+
+  // Stars
+  const sp=[];
+  for(let k=0;k<1500;k++){
+    const t=Math.random()*TAU,p=Math.acos(2*Math.random()-1),r=55+45*Math.random();
+    sp.push(r*Math.sin(p)*Math.cos(t),r*Math.sin(p)*Math.sin(t),r*Math.cos(p));
+  }
+  const sg=new THREE.BufferGeometry();
+  sg.setAttribute('position',new THREE.Float32BufferAttribute(sp,3));
+  scn.add(new THREE.Points(sg,new THREE.PointsMaterial({color:0xffffff,size:0.15,sizeAttenuation:true})));
+
+  // Fat orbit lines using Line2
+  const W=c3dEl.clientWidth,H=c3dEl.clientHeight;
+  pMat=new LineMaterial({color:0x4da6ff,linewidth:3});
+  pMat.resolution.set(W,H);
+  cMat=new LineMaterial({color:0xff8844,linewidth:3});
+  cMat.resolution.set(W,H);
+  pLn=new Line2(new LineGeometry(),pMat);
+  cLn=new Line2(new LineGeometry(),cMat);
+  scn.add(pLn,cLn);
+
+  // Orbital plane (graph-paper grid)
+  oPlane=new THREE.Group();
+  const gridSpan=4, gridDiv=16;
+  const gStep=gridSpan*2/gridDiv;
+  const gridMajMat=new THREE.LineBasicMaterial({color:0x55aadd,transparent:true,opacity:0.7});
+  const gridMinMat=new THREE.LineBasicMaterial({color:0x3388bb,transparent:true,opacity:0.35});
+  for(let j=-gridDiv;j<=gridDiv;j++){
+    const t=j*gStep/2;
+    const isMajor=(j%4===0);
+    const mat=isMajor?gridMajMat:gridMinMat;
+    // Line along X at Y=t
+    const g1=new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-gridSpan,t,0),new THREE.Vector3(gridSpan,t,0)]);
+    oPlane.add(new THREE.Line(g1,mat));
+    // Line along Y at X=t
+    const g2=new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(t,-gridSpan,0),new THREE.Vector3(t,gridSpan,0)]);
+    oPlane.add(new THREE.Line(g2,mat));
+  }
+  scn.add(oPlane);
+
+  // Separation line
+  const slG=new THREE.BufferGeometry();
+  slG.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(6),3));
+  sepLn=new THREE.Line(slG,new THREE.LineBasicMaterial({color:0x2a2a4a,transparent:true,opacity:0.5}));
+  scn.add(sepLn);
+
+  // ── Pulsar (NS sphere + spinning beam + dipole field lines) ──
+  pGrp=new THREE.Group(); scn.add(pGrp);
+  pSphere=new THREE.Mesh(
+    new THREE.SphereGeometry(0.06,24,24),
+    new THREE.MeshPhongMaterial({color:0x79c0ff,emissive:0x1050c0,emissiveIntensity:1,shininess:120})
+  );
+  pGrp.add(pSphere);
+  pSpinGrp=new THREE.Group(); pGrp.add(pSpinGrp);
+  addBeamAndField(pSpinGrp,0x00ddff,0x4488ff,0.5);
+
+  // ── Companion (rebuilt dynamically based on mass) ──
+  cGrp=new THREE.Group(); scn.add(cGrp);
+  cSphere=new THREE.Mesh(
+    new THREE.SphereGeometry(0.09,24,24),
+    new THREE.MeshPhongMaterial({color:0xffa657,emissive:0x602010,emissiveIntensity:0.5})
+  );
+  cGrp.add(cSphere);
+  cSpinGrp=null; cDisk=null;
+
+  // Centre of mass
+  coMsh=new THREE.Mesh(
+    new THREE.SphereGeometry(0.025,12,12),
+    new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.7})
+  );
+  scn.add(coMsh);
+
+  // Observer arrow
+  scn.add(new THREE.ArrowHelper(
+    new THREE.Vector3(0,0,1),new THREE.Vector3(-3.8,-2.2,-0.5),1.4,0x7aaccc,0.25,0.1
+  ));
+
+  // Line of nodes (dashed)
+  const lnG=new THREE.BufferGeometry();
+  lnG.setAttribute('position',new THREE.Float32BufferAttribute([-4,0,0,4,0,0],3));
+  const lnL=new THREE.Line(lnG,new THREE.LineDashedMaterial({color:0x2a3a4a,dashSize:0.15,gapSize:0.1}));
+  lnL.computeLineDistances();
+  scn.add(lnL);
+
+  // === Rubber sheet (spacetime curvature, horizontal below orbit) ===
+  const sheetSegs=50;
+  sheetGeo=new THREE.PlaneGeometry(7,7,sheetSegs,sheetSegs);
+  sheetGeo.rotateX(-Math.PI/2); // flat in x-z plane
+  sheetBaseY=new Float32Array(sheetGeo.attributes.position.count);
+  for(let i=0;i<sheetGeo.attributes.position.count;i++){
+    sheetBaseY[i]=sheetGeo.attributes.position.getY(i);
+  }
+  sheetMesh=new THREE.Mesh(sheetGeo,new THREE.MeshBasicMaterial({
+    color:0x00e088, wireframe:true, transparent:true, opacity:0.25
+  }));
+  sheetMesh.position.y=-0.45;
+  scn.add(sheetMesh);
+
+  // === Sun (to-scale, textured, positioned above CoM) ===
+  const sunTex=makeSunTexture();
+  const sunGeo=new THREE.SphereGeometry(1,64,48);
+  sunMesh=new THREE.Mesh(sunGeo,new THREE.MeshBasicMaterial({
+    map:sunTex,transparent:true,opacity:0.55,depthWrite:false,
+  }));
+  sunMesh.visible=false;
+  scn.add(sunMesh);
+
+  new ResizeObserver(()=>{
+    const w=c3dEl.clientWidth,h=c3dEl.clientHeight;
+    cam.aspect=w/h;cam.updateProjectionMatrix();
+    ren.setSize(w,h);
+    pMat.resolution.set(w,h);
+    cMat.resolution.set(w,h);
+  }).observe(c3dEl);
+}
+
+// ── Helper: add jet beams + dipole field lines to a spin group ──
+function addBeamAndField(spinGrp,beamCol,fieldCol,beamLen){
+  // Tilt magnetic axis 45° from spin axis (y)
+  const tiltGrp=new THREE.Group();
+  tiltGrp.rotation.x=Math.PI/4;  // 45 degrees
+  spinGrp.add(tiltGrp);
+
+  // === Jet beams (tapered cylinders that widen away from the star) ===
+  const nSeg=12;
+  for(let side=-1;side<=1;side+=2){
+    // Build a tapered jet from multiple stacked rings
+    const jetGrp=new THREE.Group();
+    const jetSegs=8;
+    for(let j=0;j<jetSegs;j++){
+      const t0=j/jetSegs, t1=(j+1)/jetSegs;
+      const rBot=0.008+t0*0.06;   // widens from narrow to wide
+      const rTop=0.008+t1*0.06;
+      const segH=beamLen/jetSegs;
+      const fade=1.0-t0*0.7;       // fade out along length
+      const mat=new THREE.MeshBasicMaterial({
+        color:beamCol,transparent:true,
+        opacity:0.4*fade,side:THREE.DoubleSide,
+        depthWrite:false,
+      });
+      const seg=new THREE.Mesh(new THREE.CylinderGeometry(rTop,rBot,segH,nSeg,1,true),mat);
+      seg.position.y=side*(t0*beamLen+segH/2);
+      if(side<0) seg.rotation.z=Math.PI;
+      jetGrp.add(seg);
+    }
+    // Bright core line
+    const corePts=[
+      new THREE.Vector3(0,0,0),
+      new THREE.Vector3(0,side*beamLen*0.95,0)
+    ];
+    const coreLine=new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(corePts),
+      new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.5})
+    );
+    jetGrp.add(coreLine);
+    // Glow at base
+    const glowMat=new THREE.SpriteMaterial({
+      color:beamCol,transparent:true,opacity:0.4,
+      blending:THREE.AdditiveBlending,depthWrite:false,
+    });
+    const glow=new THREE.Sprite(glowMat);
+    glow.scale.setScalar(0.08);
+    glow.position.y=side*0.04;
+    jetGrp.add(glow);
+    tiltGrp.add(jetGrp);
+  }
+
+  // === Dipole magnetic field lines ===
+  const fMat=new THREE.LineBasicMaterial({color:fieldCol,transparent:true,opacity:0.22});
+  for(let p=0;p<6;p++){
+    const phi=p*Math.PI/3;
+    const pts=[];
+    for(let t=0;t<=50;t++){
+      const th=t/50*Math.PI;
+      const L=0.3;
+      const r=L*Math.sin(th)*Math.sin(th);
+      pts.push(new THREE.Vector3(
+        r*Math.sin(th)*Math.cos(phi),
+        r*Math.cos(th),
+        r*Math.sin(th)*Math.sin(phi)
+      ));
+    }
+    tiltGrp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),fMat));
+  }
+}
+
+// ── Helper: procedural Sun texture ──
+function makeSunTexture(){
+  const S=512,cv=document.createElement('canvas');
+  cv.width=cv.height=S;
+  const ctx=cv.getContext('2d');
+  // Base gradient (limb darkening)
+  const g=ctx.createRadialGradient(S/2,S/2,0,S/2,S/2,S/2);
+  g.addColorStop(0,'#fff5d0');
+  g.addColorStop(0.5,'#ffcc33');
+  g.addColorStop(0.78,'#ee8800');
+  g.addColorStop(0.92,'#cc4400');
+  g.addColorStop(1,'#661100');
+  ctx.fillStyle=g;ctx.fillRect(0,0,S,S);
+  // Granulation noise
+  const id=ctx.getImageData(0,0,S,S);
+  for(let i=0;i<id.data.length;i+=4){
+    const n=(Math.random()-0.5)*30;
+    id.data[i]=Math.min(255,Math.max(0,id.data[i]+n));
+    id.data[i+1]=Math.min(255,Math.max(0,id.data[i+1]+n));
+    id.data[i+2]=Math.min(255,Math.max(0,id.data[i+2]+n*0.5));
+  }
+  ctx.putImageData(id,0,0);
+  // A few sunspots
+  for(let s=0;s<5;s++){
+    const sx=S*0.25+Math.random()*S*0.5, sy=S*0.25+Math.random()*S*0.5;
+    const sr=3+Math.random()*8;
+    const sg=ctx.createRadialGradient(sx,sy,0,sx,sy,sr);
+    sg.addColorStop(0,'rgba(30,10,0,0.7)');
+    sg.addColorStop(0.6,'rgba(80,30,0,0.4)');
+    sg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=sg;ctx.fillRect(sx-sr,sy-sr,sr*2,sr*2);
+  }
+  const tex=new THREE.CanvasTexture(cv);
+  tex.colorSpace=THREE.SRGBColorSpace;
+  return tex;
+}
+
+// ── Helper: update companion visuals based on mass ──
+function updateCompanionType(m2val){
+  let newType;
+  if(m2val<1.3) newType='wd';
+  else if(m2val<=2.4) newType='pulsar';
+  else newType='bh';
+  if(newType===compType) return;
+  compType=newType;
+  const leg=document.getElementById('comp-legend');
+  if(leg){
+    const labels={wd:'&#9679; Companion (white dwarf)',pulsar:'&#9679; Companion (pulsar)',bh:'&#9679; Companion (black hole)'};
+    const cols={wd:'#d0e8ff',pulsar:'#ff9966',bh:'#6a6a8a'};
+    leg.innerHTML=labels[newType];
+    leg.style.color=cols[newType];
+  }
+
+  // Remove old type-specific children (keep cSphere at index 0)
+  while(cGrp.children.length>1) cGrp.remove(cGrp.children[cGrp.children.length-1]);
+  cSpinGrp=null; cDisk=null;
+
+  if(newType==='wd'){
+    // White dwarf: larger white-blue sphere, faint glow
+    cSphere.material.color.setHex(0xd0e8ff);
+    cSphere.material.emissive.setHex(0x304060);
+    cSphere.material.emissiveIntensity=0.6;
+    // Glow sprite
+    const glowMat=new THREE.SpriteMaterial({
+      color:0x88bbff,transparent:true,opacity:0.15,
+      blending:THREE.AdditiveBlending,depthWrite:false,
+    });
+    const glow=new THREE.Sprite(glowMat);
+    glow.scale.setScalar(0.5);
+    cGrp.add(glow);
+  }
+  else if(newType==='pulsar'){
+    // Neutron star companion: blue with beam + field lines
+    cSphere.material.color.setHex(0xff9966);
+    cSphere.material.emissive.setHex(0x803010);
+    cSphere.material.emissiveIntensity=0.8;
+    cSpinGrp=new THREE.Group();
+    cGrp.add(cSpinGrp);
+    addBeamAndField(cSpinGrp,0xff6600,0xff8844,0.4);
+  }
+  else{ // bh
+    // Black hole: dark sphere + accretion disk + photon ring
+    cSphere.material.color.setHex(0x0a0a14);
+    cSphere.material.emissive.setHex(0x000005);
+    cSphere.material.emissiveIntensity=0.1;
+    // Accretion disk (torus)
+    const diskMat=new THREE.MeshBasicMaterial({
+      color:0xff6600,transparent:true,opacity:0.35,side:THREE.DoubleSide,
+    });
+    cDisk=new THREE.Mesh(new THREE.TorusGeometry(0.18,0.04,8,32),diskMat);
+    cDisk.rotation.x=Math.PI/2;
+    cGrp.add(cDisk);
+    // Photon ring (bright inner ring)
+    const ringMat=new THREE.MeshBasicMaterial({
+      color:0xffaa44,transparent:true,opacity:0.5,side:THREE.DoubleSide,
+    });
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(0.11,0.008,8,32),ringMat);
+    ring.rotation.x=Math.PI/2;
+    cGrp.add(ring);
+    // Event horizon glow
+    const ehMat=new THREE.SpriteMaterial({
+      color:0x221133,transparent:true,opacity:0.3,
+      blending:THREE.AdditiveBlending,depthWrite:false,
+    });
+    const eh=new THREE.Sprite(ehMat);
+    eh.scale.setScalar(0.3);
+    cGrp.add(eh);
+  }
+}
+
+function updOrbits(d){
+  const{e,i,w,m1,m2,Mt}=d;
+  const N=240;
+  const pA=[],cA=[];
+  for(let k=0;k<=N;k++){
+    const E=k/N*TAU,p=orb3(E,e,w,i);
+    const f1=(m2/Mt)*VS,f2=(m1/Mt)*VS;
+    pA.push(p.x*f1,p.y*f1,p.z*f1);
+    cA.push(-p.x*f2,-p.y*f2,-p.z*f2);
+  }
+  pLn.geometry.dispose();
+  cLn.geometry.dispose();
+  const pg=new LineGeometry(); pg.setPositions(pA); pLn.geometry=pg;
+  const cg=new LineGeometry(); cg.setPositions(cA); cLn.geometry=cg;
+  oPlane.rotation.set(i,0,0);
+
+  // Update Sun: scale and position 1.5 R above CoM
+  if(sunMesh){
+    const sunR=(R_SUN_LS/d.a_ls)*VS;
+    sunMesh.scale.setScalar(sunR);
+    sunMesh.position.set(0, sunR*1.5, 0);
+  }
+
+  // Update companion type based on m2
+  updateCompanionType(d.m2);
+}
+
+function updSpheres(E,d,dt){
+  const{e,i,w,m1,m2,Mt}=d;
+  const p=orb3(E,e,w,i);
+  const f1=(m2/Mt)*VS,f2=(m1/Mt)*VS;
+
+  // Move groups
+  pGrp.position.set(p.x*f1,p.y*f1,p.z*f1);
+  cGrp.position.set(-p.x*f2,-p.y*f2,-p.z*f2);
+
+  // Scale companion sphere by mass
+  const cScale=Math.min(Math.max(Math.cbrt(m2/1.4)*0.09,0.03),0.25);
+  cSphere.scale.setScalar(cScale/0.09);
+  const pScale=Math.min(Math.max(Math.cbrt(m1/1.4)*0.06,0.03),0.15);
+  pSphere.scale.setScalar(pScale/0.06);
+
+  // Spin the pulsar beam
+  const sdt=Math.min(dt||0.016,0.1);
+  if(pSpinGrp) pSpinGrp.rotation.y+=pulsarSpinRate*sdt;
+  // Spin companion beam if it's a pulsar
+  if(cSpinGrp) cSpinGrp.rotation.y+=pulsarSpinRate*0.7*sdt;
+  // Rotate accretion disk slowly
+  if(cDisk) cDisk.rotation.z+=0.4*sdt;
+
+  // Separation line
+  const a=sepLn.geometry.attributes.position.array;
+  a[0]=pGrp.position.x;a[1]=pGrp.position.y;a[2]=pGrp.position.z;
+  a[3]=cGrp.position.x;a[4]=cGrp.position.y;a[5]=cGrp.position.z;
+  sepLn.geometry.attributes.position.needsUpdate=true;
+
+  // Update rubber sheet
+  updSheet(pGrp.position,cGrp.position,m1,m2);
+}
+
+function updSheet(pPos,cPos,m1,m2){
+  if(!sheetMesh||!sheetMesh.visible) return;
+  const pos=sheetGeo.attributes.position;
+  const K=0.12;
+  const rMin=0.15;
+  for(let idx=0;idx<pos.count;idx++){
+    const vx=pos.getX(idx);
+    const vz=pos.getZ(idx);
+    const r1=Math.max(rMin,Math.sqrt((vx-pPos.x)**2+(vz-pPos.z)**2));
+    const r2=Math.max(rMin,Math.sqrt((vx-cPos.x)**2+(vz-cPos.z)**2));
+    const depression=-K*(m1/r1+m2/r2);
+    pos.setY(idx,sheetBaseY[idx]+depression);
+  }
+  pos.needsUpdate=true;
+}
+
+/* ================================================================
+   2D PLOT
+   ================================================================ */
+function precomp(d){
+  const N=500;
+  const v={shapiro:[],roemer:[],einstein:[],total:[],vr_psr:[],vr_comp:[]};
+  const b={shapiro:[1e30,-1e30],roemer:[1e30,-1e30],einstein:[1e30,-1e30],total:[1e30,-1e30],vr_psr:[1e30,-1e30],vr_comp:[1e30,-1e30]};
+  for(let k=0;k<=N;k++){
+    const E=kepler(k/N*TAU,d.e);
+    const dl=dly(E,d);
+    const rv=radvel(E,d);
+    const row={shapiro:dl.shapiro*1e6,roemer:dl.roemer*1e3,einstein:dl.einstein*1e3,total:dl.total*1e3,vr_psr:rv.vr1,vr_comp:rv.vr2};
+    for(const key in row){
+      v[key].push(row[key]);
+      if(row[key]<b[key][0])b[key][0]=row[key];
+      if(row[key]>b[key][1])b[key][1]=row[key];
+    }
+  }
+  // For radvel tab, compute combined bounds
+  b.radvel=[Math.min(b.vr_psr[0],b.vr_comp[0]),Math.max(b.vr_psr[1],b.vr_comp[1])];
+  pCache={N,v,b};
+}
+
+function drawPlot(curM){
+  if(pView==='formulae')return;
+  const wrap=document.getElementById('plot-box');
+  const cv=document.getElementById('plot-cv');
+  const pr=window.devicePixelRatio||1;
+  const W=wrap.clientWidth,H=wrap.clientHeight;
+  cv.width=W*pr;cv.height=H*pr;
+  cv.style.width=W+'px';cv.style.height=H+'px';
+  const ctx=cv.getContext('2d');
+  ctx.scale(pr,pr);
+
+  ctx.fillStyle='#0d1117';
+  ctx.fillRect(0,0,W,H);
+  if(!pCache)return;
+
+  const isRV=(pView==='radvel');
+  const mg={l:62,r:18,t:isRV?28:16,b:34};
+  const pw=W-mg.l-mg.r,ph=H-mg.t-mg.b;
+
+  // Y bounds
+  let yMn,yMx;
+  if(isRV){
+    [yMn,yMx]=pCache.b.radvel;
+  } else {
+    [yMn,yMx]=pCache.b[pView];
+  }
+  const yr=Math.max(1e-15,yMx-yMn);
+  yMn-=0.08*yr;yMx+=0.08*yr;
+
+  const tx=k=>mg.l+(k/pCache.N)*pw;
+  const ty=v=>mg.t+(1-(v-yMn)/(yMx-yMn))*ph;
+
+  // Grid
+  ctx.strokeStyle='#1a2535';ctx.lineWidth=0.5;
+  for(let j=0;j<=4;j++){
+    const y=mg.t+j*ph/4;
+    ctx.beginPath();ctx.moveTo(mg.l,y);ctx.lineTo(mg.l+pw,y);ctx.stroke();
+    const x=mg.l+j*pw/4;
+    ctx.beginPath();ctx.moveTo(x,mg.t);ctx.lineTo(x,mg.t+ph);ctx.stroke();
+  }
+  // Zero line
+  if(yMn<0&&yMx>0){
+    ctx.strokeStyle='#2a4060';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(mg.l,ty(0));ctx.lineTo(mg.l+pw,ty(0));ctx.stroke();
+  }
+
+  if(isRV){
+    // Draw two curves: pulsar (blue) and companion (orange)
+    const dp=pCache.v.vr_psr, dc=pCache.v.vr_comp;
+    // Companion curve
+    ctx.strokeStyle='#ff8844';ctx.lineWidth=2;ctx.lineJoin='round';
+    ctx.beginPath();
+    dc.forEach((v,k)=>k===0?ctx.moveTo(tx(k),ty(v)):ctx.lineTo(tx(k),ty(v)));
+    ctx.stroke();
+    // Pulsar curve (on top)
+    ctx.strokeStyle='#4da6ff';ctx.lineWidth=2;
+    ctx.beginPath();
+    dp.forEach((v,k)=>k===0?ctx.moveTo(tx(k),ty(v)):ctx.lineTo(tx(k),ty(v)));
+    ctx.stroke();
+
+    // Phase marker with dots on both curves
+    const phase=(curM%TAU+TAU)%TAU/TAU;
+    const kC=Math.round(phase*pCache.N);
+    if(kC>=0&&kC<=pCache.N){
+      const xM=tx(kC);
+      ctx.strokeStyle='rgba(255,150,80,0.45)';ctx.lineWidth=1.5;
+      ctx.setLineDash([4,4]);
+      ctx.beginPath();ctx.moveTo(xM,mg.t);ctx.lineTo(xM,mg.t+ph);ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='#4da6ff';
+      ctx.beginPath();ctx.arc(xM,ty(dp[kC]||0),4.5,0,TAU);ctx.fill();
+      ctx.fillStyle='#ff8844';
+      ctx.beginPath();ctx.arc(xM,ty(dc[kC]||0),4.5,0,TAU);ctx.fill();
+    }
+
+    // Legend
+    ctx.font='11px -apple-system,sans-serif';
+    ctx.fillStyle='#4da6ff';ctx.fillRect(mg.l+8,mg.t+3,14,3);
+    ctx.fillStyle='#8b949e';ctx.textAlign='left';
+    ctx.fillText('Pulsar',mg.l+26,mg.t+8);
+    ctx.fillStyle='#ff8844';ctx.fillRect(mg.l+78,mg.t+3,14,3);
+    ctx.fillStyle='#8b949e';
+    ctx.fillText('Companion',mg.l+96,mg.t+8);
+  } else {
+    // Single curve (existing behavior)
+    const cols={shapiro:'#3fb950',roemer:'#4da6ff',einstein:'#e3b341',total:'#f85149'};
+    const data=pCache.v[pView];
+    ctx.strokeStyle=cols[pView];ctx.lineWidth=2;ctx.lineJoin='round';
+    ctx.beginPath();
+    data.forEach((v,k)=>k===0?ctx.moveTo(tx(k),ty(v)):ctx.lineTo(tx(k),ty(v)));
+    ctx.stroke();
+
+    // Phase marker
+    const phase=(curM%TAU+TAU)%TAU/TAU;
+    const kC=Math.round(phase*pCache.N);
+    if(kC>=0&&kC<=pCache.N){
+      const xM=tx(kC);
+      ctx.strokeStyle='rgba(255,150,80,0.55)';ctx.lineWidth=1.5;
+      ctx.setLineDash([4,4]);
+      ctx.beginPath();ctx.moveTo(xM,mg.t);ctx.lineTo(xM,mg.t+ph);ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='#ff9640';
+      ctx.beginPath();ctx.arc(xM,ty(data[kC]||0),4.5,0,TAU);ctx.fill();
+    }
+  }
+
+  // Axes
+  ctx.strokeStyle='#3a4a5a';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(mg.l,mg.t);ctx.lineTo(mg.l,mg.t+ph);ctx.lineTo(mg.l+pw,mg.t+ph);ctx.stroke();
+
+  // Tick labels
+  ctx.fillStyle='#8b949e';ctx.font='11px -apple-system,sans-serif';
+  ctx.textAlign='right';
+  for(let j=0;j<=4;j++){
+    const v=yMn+j*(yMx-yMn)/4;
+    ctx.fillText(v.toFixed(yMx-yMn<1?3:1),mg.l-5,ty(v)+4);
+  }
+  ctx.textAlign='center';
+  for(let j=0;j<=4;j++) ctx.fillText((j/4).toFixed(2),mg.l+j*pw/4,mg.t+ph+14);
+  ctx.fillText('Orbital Phase',mg.l+pw/2,mg.t+ph+28);
+
+  // Y-axis label
+  ctx.save();ctx.translate(12,mg.t+ph/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';
+  const yl={shapiro:'Shapiro (\u03BCs)',roemer:'Roemer (ms)',einstein:'Einstein (ms)',total:'Total (ms)',radvel:'Radial Velocity (km/s)'};
+  ctx.fillText(yl[pView]||'',0,0);ctx.restore();
+}
+
+/* ================================================================
+   EVENTS
+   ================================================================ */
+function onChange(){
+  D=calc(P);
+  updatePK(D);updateOG(D);
+  updOrbits(D);
+  precomp(D);
+  if(viewLocked) snapCamToObserver();
+}
+
+document.getElementById('preset').addEventListener('change',ev=>{
+  const p=PRE[ev.target.value];
+  if(!p)return;
+  savedPb_h=null; savedE=null;  // clear evolve stash
+  document.getElementById('evolve-sel').value='';  // reset dropdown
+  setSliders(p);onChange();
+});
+
+document.getElementById('play-btn').addEventListener('click',()=>{
+  playing=!playing;
+  document.getElementById('play-btn').innerHTML=playing?'&#9208;':'&#9654;';
+  if(playing)lastT=null;
+});
+
+// Logarithmic speed: slider 0-100 maps to 0.01x - 50x, midpoint=2x
+function sliderToSpeed(v){ return Math.pow(10,-0.0001806*v*v+0.05505*v-2); }
+document.getElementById('spd-sl').addEventListener('input',ev=>{
+  spd=sliderToSpeed(parseFloat(ev.target.value));
+  document.getElementById('spd-v').textContent=spd<0.1?spd.toFixed(3)+'x':spd<1?spd.toFixed(2)+'x':spd.toFixed(1)+'x';
+});
+
+document.getElementById('sun-toggle').addEventListener('change',ev=>{
+  showSun=ev.target.checked;
+  if(sunMesh) sunMesh.visible=showSun;
+});
+
+document.getElementById('grid-toggle').addEventListener('change',ev=>{
+  if(oPlane) oPlane.visible=ev.target.checked;
+});
+
+document.getElementById('sheet-toggle').addEventListener('change',ev=>{
+  if(sheetMesh) sheetMesh.visible=ev.target.checked;
+});
+
+document.getElementById('evolve-sel').addEventListener('change',ev=>{
+  const val=ev.target.value;
+  const slPb=document.getElementById('s-Pb_h');
+  const niPb=document.getElementById('n-Pb_h');
+  const slE=document.getElementById('s-e');
+  const niE=document.getElementById('n-e');
+
+  if(!val){
+    // "— now —" selected: restore originals
+    if(savedPb_h!==null){
+      P.Pb_h=savedPb_h; P.e=savedE;
+      if(slPb){slPb.value=savedPb_h; niPb.value=savedPb_h;}
+      if(slE){slE.value=savedE; niE.value=savedE;}
+      savedPb_h=null; savedE=null;
+      onChange();
+    }
+    return;
+  }
+
+  const frac=parseFloat(val);
+  if(!frac||!D) return;
+
+  // Stash originals on first evolve (always evolve from the originals, not from a previous evolution)
+  if(savedPb_h===null){ savedPb_h=P.Pb_h; savedE=P.e; }
+  // Evolve from the saved originals, not the current (possibly already-evolved) values
+  const base={...P, Pb_h:savedPb_h, e:savedE};
+  const evolved=evolveGW(base,frac);
+  if(!evolved) return;
+
+  P.Pb_h=evolved.Pb_h; P.e=evolved.e;
+  if(slPb){slPb.value=evolved.Pb_h; niPb.value=evolved.Pb_h.toPrecision(6);}
+  if(slE){slE.value=evolved.e; niE.value=evolved.e.toPrecision(6);}
+  onChange();
+});
+
+document.getElementById('lock-btn').addEventListener('click',()=>{
+  viewLocked=!viewLocked;
+  const btn=document.getElementById('lock-btn');
+  if(viewLocked){
+    btn.classList.add('locked');
+    btn.innerHTML='&#128275; Locked';
+    ctl.enabled=false;
+    snapCamToObserver();
+  } else {
+    btn.classList.remove('locked');
+    btn.innerHTML='&#128274; Lock';
+    ctl.enabled=true;
+  }
+});
+
+function snapCamToObserver(){
+  // Position camera along the +z axis (observer's line of sight)
+  const dist=8;
+  cam.position.set(0,0,dist);
+  cam.up.set(0,1,0);
+  cam.lookAt(0,0,0);
+  ctl.target.set(0,0,0);
+}
+
+document.querySelectorAll('.ptab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.ptab').forEach(x=>x.classList.remove('on'));
+    t.classList.add('on');
+    pView=t.dataset.v;
+    const fp=document.getElementById('formulae-panel');
+    const cv=document.getElementById('plot-cv');
+    if(pView==='formulae'){
+      fp.style.display='block'; cv.style.display='none';
+      if(window.MathJax&&MathJax.typeset) MathJax.typeset();
+    } else if(pView==='radvel'){
+      fp.style.display='none'; cv.style.display='block';
+    } else {
+      fp.style.display='none'; cv.style.display='block';
+    }
+  });
+});
+
+/* ================================================================
+   ANIMATION LOOP
+   ================================================================ */
+function frame(t){
+  requestAnimationFrame(frame);
+
+  const dt=(lastT!==null)?Math.min((t-lastT)/1000,0.1):0.016;
+  if(playing&&lastT!==null&&D){
+    // Rate scales with 1/Pb: shorter period = faster animation.
+    // At speed=1, a system with Pb=8h completes one orbit in 5 real seconds.
+    const REF_PB=28800; // 8 hours in seconds
+    animM=(animM+spd*TAU*REF_PB/(5*D.Pb)*dt)%TAU;
+  }
+  lastT=t;
+
+  if(D){
+    const E=kepler(animM,D.e);
+    updSpheres(E,D,dt);
+    updateLive(E,D);
+    document.getElementById('ph-v').textContent=(animM/TAU).toFixed(3);
+    drawPlot(animM);
+  }
+
+  ctl.update();
+  ren.render(scn,cam);
+}
+
+/* ================================================================
+   INIT
+   ================================================================ */
+buildSliders();
+init3();
+setSliders(PRE.J0737);
+onChange();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

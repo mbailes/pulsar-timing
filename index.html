@@ -246,6 +246,8 @@ function calc(p) {
   const fe=(1+73/24*e2+37/96*e2*e2)/(1-e2)**(7/2);
   const Pbdot=-(192*Math.PI/5)*Tsun**(5/3)*n**(5/3)*fe*m1*m2/Mt**(1/3);
   const rs=Tsun*m2, ss=Math.sin(i);
+  // Geodetic precession rate [rad/s] (Barker & O'Connell 1975; Damour & Ruffini 1974)
+  const geodot=0.5*n**(5/3)*Tsun**(2/3)*m2*(4*m1+3*m2)/((1-e2)*Mt**(4/3));
   const beta=(64/5)*Gc**3*m1*m2*Mt*Msun**3/Cc**5;
   const Tmrg=peters(a_m,e,beta);
 
@@ -271,6 +273,7 @@ function calc(p) {
     Pbdot_12:Pbdot*1e12,
     rs, rs_us:rs*1e6, ss,
     Tmrg_Myr:Tmrg/YR/1e6,
+    geodot_dyr:geodot*(180/Math.PI)*YR,
     roemer_pp,
   };
 }
@@ -418,6 +421,7 @@ function updatePK(d){
     <span class="dk"></span><span class="dv">${d.wdot_dorb.toFixed(5)} \u00B0/orbit</span>
     <span class="dk">P\u0307\u1D47</span><span class="dv red">${d.Pbdot_12.toFixed(4)} \u00D710\u207B\u00B9\u00B2</span>
     <span class="dk">T<sub>merge</sub></span><span class="dv">${fmtMerge(d.Tmrg_Myr)}</span>
+    <span class="dk">\u03A9<sub>geod</sub></span><span class="dv">${d.geodot_dyr.toFixed(4)} \u00B0/yr</span>
     <span class="dk">r (Shapiro)</span><span class="dv">${d.rs_us.toFixed(3)} \u03BCs</span>
     <span class="dk">s = sin(i)</span><span class="dv">${d.ss.toFixed(5)}</span>`;
 }

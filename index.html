@@ -72,12 +72,25 @@ body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,'Segoe UI',syste
 
 <div id="hdr">
   <h1>Binary Pulsar Timing Calculator</h1>
+  <select id="comp-type-sel" style="background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:5px 10px;font-size:0.85rem">
+    <option value="auto">Companion: Auto</option>
+    <option value="planet">Planet</option>
+    <option value="wd">White Dwarf</option>
+    <option value="ns">Neutron Star</option>
+    <option value="ms">Main Seq. Star</option>
+    <option value="bestar">Be Star</option>
+    <option value="bh">Black Hole</option>
+  </select>
   <select id="preset">
     <option value="">Presets</option>
     <option value="J0737" selected>J0737-3039A (Double Pulsar)</option>
     <option value="B1913">B1913+16 (Hulse-Taylor)</option>
     <option value="J1614">J1614-2230 (High mass WD)</option>
     <option value="PSRBH">PSR-BH (NS-BH)</option>
+    <option value="J0437">J0437-4715 (MSP+WD)</option>
+    <option value="J1141">J1141-6545 (Young+WD)</option>
+    <option value="J1302">J1302-6350 (PSR+Be star)</option>
+    <option value="J1719">J1719-1438 (Diamond planet)</option>
   </select>
 </div>
 
@@ -91,11 +104,15 @@ body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,'Segoe UI',syste
 
 <div id="viewport">
   <div id="c3d">
+    <a id="ref-link" href="#" target="_blank" style="position:absolute;top:8px;left:10px;color:#ffffff;font-size:0.82rem;text-decoration:none;pointer-events:auto;background:rgba(13,17,23,0.7);padding:3px 8px;border-radius:4px;z-index:5;font-style:italic"></a>
     <div class="legend-3d">
       <div style="color:#79c0ff">&#9679; Pulsar (beamed)</div>
       <div style="color:#ffa657" id="comp-legend">&#9679; Companion</div>
-      <label style="display:flex;align-items:center;gap:5px;margin-top:3px;cursor:pointer;pointer-events:auto;color:#66bbff">
-        <input type="checkbox" id="grid-toggle" checked> Orbital plane grid
+      <label style="display:flex;align-items:center;gap:5px;margin-top:3px;cursor:pointer;pointer-events:auto;color:#dd8833">
+        <input type="checkbox" id="sky-toggle" checked> Plane of sky
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;pointer-events:auto;color:#66bbff">
+        <input type="checkbox" id="grid-toggle" checked> Orbital plane
       </label>
       <label style="display:flex;align-items:center;gap:5px;cursor:pointer;pointer-events:auto;color:#00e088">
         <input type="checkbox" id="sheet-toggle" checked> Spacetime curvature
@@ -118,8 +135,9 @@ body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,'Segoe UI',syste
       <button id="play-btn">&#9208;</button>
       <span>Speed</span>
       <input id="spd-sl" type="range" min="0" max="100" step="1" value="28">
-      <span id="spd-v">0.25x</span>
-      <span>Phase <span id="ph-v" style="color:#e3b341;font-weight:700">0.000</span></span>
+      <span id="spd-v" style="display:inline-block;width:48px;text-align:right;font-family:monospace">0.25x</span>
+      <span>Phase <span id="ph-v" style="display:inline-block;width:42px;text-align:right;font-family:monospace;color:#e3b341;font-weight:700">0.000</span></span>
+      <button id="reset-view-btn" title="Reset camera to observer view">&#127909;</button>
       <button id="lock-btn" title="Lock camera to observer line of sight (matches inclination slider)">&#128274; Lock</button>
     </div>
   </div>
@@ -129,7 +147,10 @@ body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,'Segoe UI',syste
       <div class="ptab" data-v="roemer">Roemer (ms)</div>
       <div class="ptab" data-v="einstein">Einstein (ms)</div>
       <div class="ptab" data-v="total">Total (ms)</div>
-      <div class="ptab" data-v="radvel">Radial Vel (km/s)</div>
+      <div class="ptab" data-v="radvel">Rad Vel</div>
+      <div class="ptab" data-v="pdop">P/P₀</div>
+      <div class="ptab" data-v="accel">Accel</div>
+      <div class="ptab" data-v="jerk">Jerk</div>
       <div class="ptab" data-v="formulae">Formulae</div>
     </div>
     <div id="plot-box">
@@ -186,10 +207,22 @@ const TAU  = 2*Math.PI;
    PRESETS
    ================================================================ */
 const PRE = {
-  J0737:  {m1:1.338, m2:1.249, Pb_h:2.4544, e:0.0877775, i_deg:88.7, omega_deg:73.8},
-  B1913:  {m1:1.4408,m2:1.3886,Pb_h:7.75195,e:0.6171334, i_deg:47.2, omega_deg:292.5},
-  J1614:  {m1:1.97,  m2:0.5,   Pb_h:8.6866, e:0.00002,   i_deg:89.17,omega_deg:0},
-  PSRBH:  {m1:1.4,   m2:8.0,   Pb_h:1.4,    e:0.6,       i_deg:60.0, omega_deg:90.0},
+  J0737:  {m1:1.338, m2:1.249, Pb_h:2.4544, e:0.0877775, i_deg:88.7, omega_deg:73.8, Omega_deg:0, ctype:'ns',
+    ref:'Kramer et al. (2006)',ads:'https://ui.adsabs.harvard.edu/abs/2006Sci...314...97K'},
+  B1913:  {m1:1.4408,m2:1.3886,Pb_h:7.75195,e:0.6171334, i_deg:47.2, omega_deg:292.5,Omega_deg:0, ctype:'ns',
+    ref:'Weisberg & Taylor (2005)',ads:'https://ui.adsabs.harvard.edu/abs/2005ASPC..328...25W'},
+  J1614:  {m1:1.97,  m2:0.5,   Pb_h:8.6866, e:0.00002,   i_deg:89.17,omega_deg:0,   Omega_deg:0, ctype:'wd',
+    ref:'Demorest et al. (2010)',ads:'https://ui.adsabs.harvard.edu/abs/2010Natur.467.1081D'},
+  PSRBH:  {m1:1.4,   m2:8.0,   Pb_h:1.4,    e:0.6,       i_deg:60.0, omega_deg:90.0, Omega_deg:0, ctype:'bh',
+    ref:'Hypothetical system',ads:''},
+  J0437:  {m1:1.44,  m2:0.254, Pb_h:137.78, e:0.0000192, i_deg:42.44,omega_deg:1.0,  Omega_deg:207,ctype:'wd',
+    ref:'Reardon et al. (2016)',ads:'https://ui.adsabs.harvard.edu/abs/2016MNRAS.455.1751R'},
+  J1141:  {m1:1.27,  m2:1.02,  Pb_h:4.744,  e:0.1719,    i_deg:73.0, omega_deg:0.0,  Omega_deg:0, ctype:'wd',
+    ref:'Bailes et al. (2003)',ads:'https://ui.adsabs.harvard.edu/abs/2003ApJ...595L..49B'},
+  J1302:  {m1:1.4,   m2:10.0,  Pb_h:29681,  e:0.8699,    i_deg:27.0, omega_deg:138.7,Omega_deg:0, ctype:'bestar',
+    ref:'Johnston et al. (1992)',ads:'https://ui.adsabs.harvard.edu/abs/1992ApJ...387L..37J'},
+  J1719:  {m1:1.4,   m2:0.001144,Pb_h:2.177,e:0.00006,   i_deg:89.9, omega_deg:0,   Omega_deg:0, ctype:'planet',
+    ref:'Bailes et al. (2011)',ads:'https://ui.adsabs.harvard.edu/abs/2011Sci...333.1717B'},
 };
 
 /* ================================================================
@@ -198,10 +231,11 @@ const PRE = {
 const SL = [
   {k:'m1',    lbl:'m\u2081 (pulsar)',    u:'M\u2609', mn:0.5, mx:3,   st:0.001, d:1.338},
   {k:'m2',    lbl:'m\u2082 (companion)', u:'M\u2609', mn:0.001,mx:20, st:0.001, d:1.249},
-  {k:'Pb_h',  lbl:'P\u1D47',             u:'h',       mn:0.1, mx:200, st:0.001, d:2.4544},
+  {k:'Pb_h',  lbl:'P\u1D47',             u:'h',       mn:0.1, mx:35000,st:0.001, d:2.4544},
   {k:'e',     lbl:'Eccentricity e',      u:'',        mn:0,   mx:0.99,st:0.001, d:0.0877775},
   {k:'i_deg', lbl:'Inclination i',       u:'\u00B0',  mn:0.1, mx:89.9,st:0.1,   d:88.7},
   {k:'omega_deg',lbl:'Periastron \u03C9',u:'\u00B0',  mn:0,   mx:360, st:0.5,   d:73.8},
+  {k:'Omega_deg',lbl:'Asc. node \u03A9',u:'\u00B0',  mn:0,   mx:360, st:0.5,   d:0},
 ];
 
 /* ================================================================
@@ -234,8 +268,9 @@ function kepler(M, e) {
 }
 
 function calc(p) {
-  const {m1,m2,Pb_h,e,i_deg,omega_deg}=p;
+  const {m1,m2,Pb_h,e,i_deg,omega_deg,Omega_deg}=p;
   const Pb=Pb_h*3600, i=i_deg*Math.PI/180, w=omega_deg*Math.PI/180;
+  const Omega=(Omega_deg||0)*Math.PI/180;
   const Mt=m1+m2, e2=e*e, n=TAU/Pb;
   const a_ls=(Tsun*Mt)**(1/3)*(Pb/TAU)**(2/3);
   const a_m=a_ls*Cc;
@@ -264,7 +299,7 @@ function calc(p) {
   const roemer_pp=rMax-rMin;
 
   return {
-    e,i,w,m1,m2,Mt,Pb,n,
+    e,i,w,Omega,m1,m2,Mt,Pb,n,
     a_ls,a_AU:a_m/AU,a1_ls,x,
     rperi:a_m*(1-e)/AU, rapo:a_m*(1+e)/AU,
     gamma, gamma_ms:gamma*1e3,
@@ -321,6 +356,25 @@ function radvel(E,d){
   };
 }
 
+// Line-of-sight acceleration of pulsar at eccentric anomaly E [m/s^2]
+function accel(E,d){
+  const{e,w,Pb,x,m1,m2}=d;
+  const sq=Math.sqrt(1-e*e);
+  const cE=Math.cos(E),sE=Math.sin(E);
+  const nu=Math.atan2(sq*sE,cE-e);
+  const sinWN=Math.sin(w+nu);
+  const ecosNu=e*Math.cos(nu);
+  const n=TAU/Pb;
+  // K1 in m/s
+  const K1=TAU*x*Cc/(Pb*sq);
+  const K2=K1*m1/m2;
+  // dv/dt = -K * n * sin(w+nu) * (1+e*cos(nu))^2 / (1-e^2)^(3/2)
+  const fac=n*(1+ecosNu)**2/sq**3;
+  const a1=-K1*sinWN*fac;   // pulsar [m/s^2]
+  const a2= K2*sinWN*fac;   // companion [m/s^2]
+  return{a1,a2};
+}
+
 // Evolve binary forward via Peters equations to a fraction of remaining life
 // Returns new {Pb_h, e} or null if can't evolve
 function evolveGW(p, fraction){
@@ -354,11 +408,16 @@ function evolveGW(p, fraction){
   return{Pb_h:Pb_new/3600, e:Math.max(0,e)};
 }
 
-function orb3(E,e,w,i){
+function orb3(E,e,w,i,Omega){
   const cE=Math.cos(E),sE=Math.sin(E),sq=Math.sqrt(1-e*e);
   const nu=Math.atan2(sq*sE,cE-e);
   const th=w+nu, r=(1-e*e)/(1+e*Math.cos(nu));
-  return new THREE.Vector3(r*Math.cos(th),r*Math.sin(th)*Math.cos(i),r*Math.sin(th)*Math.sin(i));
+  // Position in orbital plane (before Omega rotation):
+  //   x' = r*cos(th), y' = r*sin(th)*cos(i), z' = r*sin(th)*sin(i)
+  // Then rotate by Omega around z-axis (line of sight):
+  const xp=r*Math.cos(th), yp=r*Math.sin(th)*Math.cos(i), zp=r*Math.sin(th)*Math.sin(i);
+  const O=Omega||0, cO=Math.cos(O), sO=Math.sin(O);
+  return new THREE.Vector3(xp*cO-yp*sO, xp*sO+yp*cO, zp);
 }
 
 /* ================================================================
@@ -455,12 +514,15 @@ const VS=2.5;
 let ren,scn,cam,ctl;
 let pGrp,pSpinGrp,pSphere;            // pulsar group, spin sub-group, NS sphere
 let cGrp,cSphere,cSpinGrp,cDisk;      // companion group + type-specific
-let compType='';                        // 'wd','pulsar','bh'
+let compType='';                        // 'planet','wd','ns','ms','bestar','bh'
+let compTypeOverride='auto';            // 'auto' or forced type
 let coMsh;
-let pLn,cLn,pMat,cMat,oPlane,sepLn;
+let pLn,cLn,pMat,cMat,oPlane,skyPlaneGrp,sepLn;
+let ghostPLn,ghostCLn,ghostPMat,ghostCMat;  // grey original orbit when evolved
 let sheetMesh,sheetGeo,sheetBaseY;
 let sunMesh;
 let c3dEl;
+let incArc,incLabel;  // inclination arc + "i" label
 let pulsarSpinRate=2*Math.PI/2.5;       // one revolution per 2.5s
 
 function init3(){
@@ -482,10 +544,25 @@ function init3(){
   const dl=new THREE.DirectionalLight(0xffffff,2);
   dl.position.set(4,8,6);scn.add(dl);
 
-  // Sky plane grid
-  const gr=new THREE.GridHelper(10,10,0x1e2d40,0x182030);
-  gr.rotation.x=-Math.PI/2;
-  scn.add(gr);
+  // Sky plane grid (orange graph-paper, in x-y plane at z=0)
+  skyPlaneGrp=new THREE.Group();
+  const skySpan=4, skyDiv=16, skyStep=skySpan*2/skyDiv;
+  const skyMajMat=new THREE.LineBasicMaterial({color:0xdd8833,transparent:true,opacity:0.35});
+  const skyMinMat=new THREE.LineBasicMaterial({color:0xaa6622,transparent:true,opacity:0.15});
+  for(let j=-skyDiv;j<=skyDiv;j++){
+    const t=j*skyStep/2;
+    const isMaj=(j%4===0);
+    const mat=isMaj?skyMajMat:skyMinMat;
+    const g1=new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-skySpan,t,0),new THREE.Vector3(skySpan,t,0)]);
+    skyPlaneGrp.add(new THREE.Line(g1,mat));
+    const g2=new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(t,-skySpan,0),new THREE.Vector3(t,skySpan,0)]);
+    skyPlaneGrp.add(new THREE.Line(g2,mat));
+  }
+  // "Plane of Sky" label
+  skyPlaneGrp.add(makeTextSprite('Plane of Sky','#dd8833',skySpan-0.3,skySpan-0.2,0));
+  scn.add(skyPlaneGrp);
 
   // Stars
   const sp=[];
@@ -507,6 +584,16 @@ function init3(){
   cLn=new Line2(new LineGeometry(),cMat);
   scn.add(pLn,cLn);
 
+  // Ghost orbit lines (grey, shown when evolved)
+  ghostPMat=new LineMaterial({color:0x888888,linewidth:2,transparent:true,opacity:0.3});
+  ghostPMat.resolution.set(W,H);
+  ghostCMat=new LineMaterial({color:0x888888,linewidth:2,transparent:true,opacity:0.3});
+  ghostCMat.resolution.set(W,H);
+  ghostPLn=new Line2(new LineGeometry(),ghostPMat);
+  ghostCLn=new Line2(new LineGeometry(),ghostCMat);
+  ghostPLn.visible=false; ghostCLn.visible=false;
+  scn.add(ghostPLn,ghostCLn);
+
   // Orbital plane (graph-paper grid)
   oPlane=new THREE.Group();
   const gridSpan=4, gridDiv=16;
@@ -526,6 +613,8 @@ function init3(){
       new THREE.Vector3(t,-gridSpan,0),new THREE.Vector3(t,gridSpan,0)]);
     oPlane.add(new THREE.Line(g2,mat));
   }
+  // "Orbital Plane" label (child of oPlane so it rotates with it)
+  oPlane.add(makeTextSprite('Orbital Plane','#55aadd',gridSpan-0.5,gridSpan-0.2,0));
   scn.add(oPlane);
 
   // Separation line
@@ -560,10 +649,11 @@ function init3(){
   );
   scn.add(coMsh);
 
-  // Observer arrow
+  // Observer arrow + label
   scn.add(new THREE.ArrowHelper(
     new THREE.Vector3(0,0,1),new THREE.Vector3(-3.8,-2.2,-0.5),1.4,0x7aaccc,0.25,0.1
   ));
+  scn.add(makeTextSprite('Observer','#7aaccc',-3.8,-2.55,-0.5));
 
   // Line of nodes (dashed)
   const lnG=new THREE.BufferGeometry();
@@ -571,6 +661,25 @@ function init3(){
   const lnL=new THREE.Line(lnG,new THREE.LineDashedMaterial({color:0x2a3a4a,dashSize:0.15,gapSize:0.1}));
   lnL.computeLineDistances();
   scn.add(lnL);
+
+  // Inclination arc (curved segment from sky plane to orbital plane)
+  incArc=new THREE.Line(new THREE.BufferGeometry(),
+    new THREE.LineBasicMaterial({color:0xffcc44,transparent:true,opacity:0.8}));
+  scn.add(incArc);
+
+  // Italic "i" label for inclination (canvas texture sprite)
+  const labelCv=document.createElement('canvas');
+  labelCv.width=64;labelCv.height=64;
+  const lctx=labelCv.getContext('2d');
+  lctx.fillStyle='#ffcc44';
+  lctx.font='italic 48px serif';
+  lctx.textAlign='center';lctx.textBaseline='middle';
+  lctx.fillText('i',32,32);
+  const labelTex=new THREE.CanvasTexture(labelCv);
+  const labelMat=new THREE.SpriteMaterial({map:labelTex,transparent:true,depthWrite:false});
+  incLabel=new THREE.Sprite(labelMat);
+  incLabel.scale.setScalar(0.3);
+  scn.add(incLabel);
 
   // === Rubber sheet (spacetime curvature, horizontal below orbit) ===
   const sheetSegs=50;
@@ -593,6 +702,9 @@ function init3(){
     map:sunTex,transparent:true,opacity:0.55,depthWrite:false,
   }));
   sunMesh.visible=false;
+  // "Sun (to scale)" label, child of sunMesh so it moves with it
+  const sunLabel=makeTextSprite('Sun (to scale)','#ffd54f',0,1.15,0);
+  sunMesh.add(sunLabel);
   scn.add(sunMesh);
 
   new ResizeObserver(()=>{
@@ -601,6 +713,8 @@ function init3(){
     ren.setSize(w,h);
     pMat.resolution.set(w,h);
     cMat.resolution.set(w,h);
+    ghostPMat.resolution.set(w,h);
+    ghostCMat.resolution.set(w,h);
   }).observe(c3dEl);
 }
 
@@ -714,39 +828,46 @@ function makeSunTexture(){
 // ── Helper: update companion visuals based on mass ──
 function updateCompanionType(m2val){
   let newType;
-  if(m2val<1.3) newType='wd';
-  else if(m2val<=2.4) newType='pulsar';
-  else newType='bh';
+  if(compTypeOverride!=='auto'){
+    newType=compTypeOverride;
+  } else {
+    if(m2val<0.08) newType='planet';
+    else if(m2val<1.3) newType='wd';
+    else if(m2val<=2.4) newType='ns';
+    else newType='bh';
+  }
   if(newType===compType) return;
   compType=newType;
   const leg=document.getElementById('comp-legend');
   if(leg){
-    const labels={wd:'&#9679; Companion (white dwarf)',pulsar:'&#9679; Companion (pulsar)',bh:'&#9679; Companion (black hole)'};
-    const cols={wd:'#d0e8ff',pulsar:'#ff9966',bh:'#6a6a8a'};
-    leg.innerHTML=labels[newType];
-    leg.style.color=cols[newType];
+    const labels={planet:'&#9679; Companion (planet)',wd:'&#9679; Companion (white dwarf)',
+      ns:'&#9679; Companion (neutron star)',ms:'&#9679; Companion (main seq.)',
+      bestar:'&#9679; Companion (Be star)',bh:'&#9679; Companion (black hole)'};
+    const cols={planet:'#88cc88',wd:'#d0e8ff',ns:'#ff9966',ms:'#ffee88',bestar:'#6688ff',bh:'#6a6a8a'};
+    leg.innerHTML=labels[newType]||'';
+    leg.style.color=cols[newType]||'#aaa';
   }
 
   // Remove old type-specific children (keep cSphere at index 0)
   while(cGrp.children.length>1) cGrp.remove(cGrp.children[cGrp.children.length-1]);
   cSpinGrp=null; cDisk=null;
 
-  if(newType==='wd'){
-    // White dwarf: larger white-blue sphere, faint glow
+  if(newType==='planet'){
+    cSphere.material.color.setHex(0x88cc88);
+    cSphere.material.emissive.setHex(0x224422);
+    cSphere.material.emissiveIntensity=0.3;
+  }
+  else if(newType==='wd'){
     cSphere.material.color.setHex(0xd0e8ff);
     cSphere.material.emissive.setHex(0x304060);
     cSphere.material.emissiveIntensity=0.6;
-    // Glow sprite
-    const glowMat=new THREE.SpriteMaterial({
+    const glow=new THREE.Sprite(new THREE.SpriteMaterial({
       color:0x88bbff,transparent:true,opacity:0.15,
-      blending:THREE.AdditiveBlending,depthWrite:false,
-    });
-    const glow=new THREE.Sprite(glowMat);
+      blending:THREE.AdditiveBlending,depthWrite:false}));
     glow.scale.setScalar(0.5);
     cGrp.add(glow);
   }
-  else if(newType==='pulsar'){
-    // Neutron star companion: blue with beam + field lines
+  else if(newType==='ns'){
     cSphere.material.color.setHex(0xff9966);
     cSphere.material.emissive.setHex(0x803010);
     cSphere.material.emissiveIntensity=0.8;
@@ -754,42 +875,84 @@ function updateCompanionType(m2val){
     cGrp.add(cSpinGrp);
     addBeamAndField(cSpinGrp,0xff6600,0xff8844,0.4);
   }
+  else if(newType==='ms'){
+    cSphere.material.color.setHex(0xffee88);
+    cSphere.material.emissive.setHex(0x806020);
+    cSphere.material.emissiveIntensity=0.5;
+    const glow=new THREE.Sprite(new THREE.SpriteMaterial({
+      color:0xffdd66,transparent:true,opacity:0.2,
+      blending:THREE.AdditiveBlending,depthWrite:false}));
+    glow.scale.setScalar(0.6);
+    cGrp.add(glow);
+  }
+  else if(newType==='bestar'){
+    // Be star: hot blue sphere + equatorial decretion disk
+    cSphere.material.color.setHex(0x6688ff);
+    cSphere.material.emissive.setHex(0x2244aa);
+    cSphere.material.emissiveIntensity=0.9;
+    // Blue glow
+    const glow=new THREE.Sprite(new THREE.SpriteMaterial({
+      color:0x4466ff,transparent:true,opacity:0.2,
+      blending:THREE.AdditiveBlending,depthWrite:false}));
+    glow.scale.setScalar(0.7);
+    cGrp.add(glow);
+    // Decretion disk (larger, redder than accretion disk)
+    const diskMat=new THREE.MeshBasicMaterial({
+      color:0xff4488,transparent:true,opacity:0.25,side:THREE.DoubleSide});
+    cDisk=new THREE.Mesh(new THREE.TorusGeometry(0.3,0.06,8,48),diskMat);
+    cDisk.rotation.x=Math.PI/2;
+    cGrp.add(cDisk);
+    // Inner disk (brighter)
+    const inner=new THREE.Mesh(new THREE.TorusGeometry(0.18,0.03,8,48),
+      new THREE.MeshBasicMaterial({color:0x8888ff,transparent:true,opacity:0.2,side:THREE.DoubleSide}));
+    inner.rotation.x=Math.PI/2;
+    cGrp.add(inner);
+  }
   else{ // bh
-    // Black hole: dark sphere + accretion disk + photon ring
     cSphere.material.color.setHex(0x0a0a14);
     cSphere.material.emissive.setHex(0x000005);
     cSphere.material.emissiveIntensity=0.1;
-    // Accretion disk (torus)
     const diskMat=new THREE.MeshBasicMaterial({
-      color:0xff6600,transparent:true,opacity:0.35,side:THREE.DoubleSide,
-    });
+      color:0xff6600,transparent:true,opacity:0.35,side:THREE.DoubleSide});
     cDisk=new THREE.Mesh(new THREE.TorusGeometry(0.18,0.04,8,32),diskMat);
     cDisk.rotation.x=Math.PI/2;
     cGrp.add(cDisk);
-    // Photon ring (bright inner ring)
-    const ringMat=new THREE.MeshBasicMaterial({
-      color:0xffaa44,transparent:true,opacity:0.5,side:THREE.DoubleSide,
-    });
-    const ring=new THREE.Mesh(new THREE.TorusGeometry(0.11,0.008,8,32),ringMat);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(0.11,0.008,8,32),
+      new THREE.MeshBasicMaterial({color:0xffaa44,transparent:true,opacity:0.5,side:THREE.DoubleSide}));
     ring.rotation.x=Math.PI/2;
     cGrp.add(ring);
-    // Event horizon glow
-    const ehMat=new THREE.SpriteMaterial({
+    const eh=new THREE.Sprite(new THREE.SpriteMaterial({
       color:0x221133,transparent:true,opacity:0.3,
-      blending:THREE.AdditiveBlending,depthWrite:false,
-    });
-    const eh=new THREE.Sprite(ehMat);
+      blending:THREE.AdditiveBlending,depthWrite:false}));
     eh.scale.setScalar(0.3);
     cGrp.add(eh);
   }
 }
 
+// ── Helper: text sprite for 3D labels ──
+function makeTextSprite(text,color,x,y,z){
+  const cv=document.createElement('canvas');
+  cv.width=256;cv.height=64;
+  const ctx=cv.getContext('2d');
+  ctx.fillStyle=color;
+  ctx.font='bold 28px -apple-system,sans-serif';
+  ctx.textAlign='left';ctx.textBaseline='middle';
+  ctx.fillText(text,4,32);
+  const tex=new THREE.CanvasTexture(cv);
+  tex.colorSpace=THREE.SRGBColorSpace;
+  const mat=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false});
+  const spr=new THREE.Sprite(mat);
+  spr.scale.set(1.5,0.375,1);
+  spr.position.set(x,y,z);
+  return spr;
+}
+
 function updOrbits(d){
-  const{e,i,w,m1,m2,Mt}=d;
+  const{e,i,w,Omega,m1,m2,Mt}=d;
   const N=240;
   const pA=[],cA=[];
   for(let k=0;k<=N;k++){
-    const E=k/N*TAU,p=orb3(E,e,w,i);
+    const E=k/N*TAU,p=orb3(E,e,w,i,Omega);
     const f1=(m2/Mt)*VS,f2=(m1/Mt)*VS;
     pA.push(p.x*f1,p.y*f1,p.z*f1);
     cA.push(-p.x*f2,-p.y*f2,-p.z*f2);
@@ -798,7 +961,37 @@ function updOrbits(d){
   cLn.geometry.dispose();
   const pg=new LineGeometry(); pg.setPositions(pA); pLn.geometry=pg;
   const cg=new LineGeometry(); cg.setPositions(cA); cLn.geometry=cg;
-  oPlane.rotation.set(i,0,0);
+  // Orbital plane: incline by i around x-axis, then rotate by Omega around z-axis
+  oPlane.rotation.set(0,0,0);
+  oPlane.rotation.x=i;
+  oPlane.rotation.z=Omega;
+
+  // Update inclination arc (curved line from sky plane to orbital plane)
+  if(incArc){
+    const arcR=1.2; // radius of arc
+    const arcPts=[];
+    const nArc=30;
+    for(let j=0;j<=nArc;j++){
+      const ang=j/nArc*i; // sweep from 0 (sky plane) to i (orbital plane)
+      // Arc lies in the y-z plane (perpendicular to line of nodes = x-axis)
+      // Then rotate by Omega around z
+      const yp=arcR*Math.cos(ang);
+      const zp=arcR*Math.sin(ang);
+      // Apply Omega rotation (around z)
+      const cO=Math.cos(Omega),sO=Math.sin(Omega);
+      // Before Omega: point is at (0, yp, zp). Omega rotates x,y:
+      arcPts.push(new THREE.Vector3(-yp*sO, yp*cO, zp));
+    }
+    incArc.geometry.dispose();
+    incArc.geometry=new THREE.BufferGeometry().setFromPoints(arcPts);
+
+    // Position "i" label at midpoint of arc
+    const midAng=i/2;
+    const lr=arcR+0.15;
+    const my=lr*Math.cos(midAng), mz=lr*Math.sin(midAng);
+    const cO=Math.cos(Omega),sO=Math.sin(Omega);
+    incLabel.position.set(-my*sO, my*cO, mz);
+  }
 
   // Update Sun: scale and position 1.5 R above CoM
   if(sunMesh){
@@ -812,8 +1005,8 @@ function updOrbits(d){
 }
 
 function updSpheres(E,d,dt){
-  const{e,i,w,m1,m2,Mt}=d;
-  const p=orb3(E,e,w,i);
+  const{e,i,w,Omega,m1,m2,Mt}=d;
+  const p=orb3(E,e,w,i,Omega);
   const f1=(m2/Mt)*VS,f2=(m1/Mt)*VS;
 
   // Move groups
@@ -865,21 +1058,49 @@ function updSheet(pPos,cPos,m1,m2){
    ================================================================ */
 function precomp(d){
   const N=500;
-  const v={shapiro:[],roemer:[],einstein:[],total:[],vr_psr:[],vr_comp:[]};
-  const b={shapiro:[1e30,-1e30],roemer:[1e30,-1e30],einstein:[1e30,-1e30],total:[1e30,-1e30],vr_psr:[1e30,-1e30],vr_comp:[1e30,-1e30]};
+  const v={shapiro:[],roemer:[],einstein:[],total:[],vr_psr:[],vr_comp:[],
+           pdop_psr:[],pdop_comp:[],acc_psr:[],acc_comp:[]};
+  const b={};
+  for(const key in v) b[key]=[1e30,-1e30];
+
   for(let k=0;k<=N;k++){
     const E=kepler(k/N*TAU,d.e);
     const dl=dly(E,d);
     const rv=radvel(E,d);
-    const row={shapiro:dl.shapiro*1e6,roemer:dl.roemer*1e3,einstein:dl.einstein*1e3,total:dl.total*1e3,vr_psr:rv.vr1,vr_comp:rv.vr2};
+    const ac=accel(E,d);
+    // P/P0 = 1 + v_r/c  (v_r in km/s, c in km/s)
+    const cKms=Cc/1e3;
+    const row={
+      shapiro:dl.shapiro*1e6, roemer:dl.roemer*1e3, einstein:dl.einstein*1e3,
+      total:dl.total*1e3, vr_psr:rv.vr1, vr_comp:rv.vr2,
+      pdop_psr:1+rv.vr1/cKms, pdop_comp:1+rv.vr2/cKms,
+      acc_psr:ac.a1, acc_comp:ac.a2,
+    };
     for(const key in row){
       v[key].push(row[key]);
       if(row[key]<b[key][0])b[key][0]=row[key];
       if(row[key]>b[key][1])b[key][1]=row[key];
     }
   }
-  // For radvel tab, compute combined bounds
+
+  // Jerk = da/dt, computed numerically from acceleration [m/s^3]
+  v.jerk_psr=[]; v.jerk_comp=[];
+  b.jerk_psr=[1e30,-1e30]; b.jerk_comp=[1e30,-1e30];
+  const dtPhase=d.Pb/N; // time per sample step [s]
+  for(let k=0;k<=N;k++){
+    const kp=Math.min(k+1,N), km=Math.max(k-1,0);
+    const jp=(v.acc_psr[kp]-v.acc_psr[km])/((kp-km)*dtPhase);
+    const jc=(v.acc_comp[kp]-v.acc_comp[km])/((kp-km)*dtPhase);
+    v.jerk_psr.push(jp); v.jerk_comp.push(jc);
+    if(jp<b.jerk_psr[0])b.jerk_psr[0]=jp; if(jp>b.jerk_psr[1])b.jerk_psr[1]=jp;
+    if(jc<b.jerk_comp[0])b.jerk_comp[0]=jc; if(jc>b.jerk_comp[1])b.jerk_comp[1]=jc;
+  }
+
+  // Combined bounds for dual-curve tabs
   b.radvel=[Math.min(b.vr_psr[0],b.vr_comp[0]),Math.max(b.vr_psr[1],b.vr_comp[1])];
+  b.pdop=[Math.min(b.pdop_psr[0],b.pdop_comp[0]),Math.max(b.pdop_psr[1],b.pdop_comp[1])];
+  b.accel=[Math.min(b.acc_psr[0],b.acc_comp[0]),Math.max(b.acc_psr[1],b.acc_comp[1])];
+  b.jerk=[Math.min(b.jerk_psr[0],b.jerk_comp[0]),Math.max(b.jerk_psr[1],b.jerk_comp[1])];
   pCache={N,v,b};
 }
 
@@ -898,14 +1119,21 @@ function drawPlot(curM){
   ctx.fillRect(0,0,W,H);
   if(!pCache)return;
 
-  const isRV=(pView==='radvel');
-  const mg={l:62,r:18,t:isRV?28:16,b:34};
+  // Dual-curve tabs: map pView to {psr curve key, comp curve key, combined bounds key}
+  const dualTabs={
+    radvel:{p:'vr_psr',c:'vr_comp',bk:'radvel'},
+    pdop:  {p:'pdop_psr',c:'pdop_comp',bk:'pdop'},
+    accel: {p:'acc_psr',c:'acc_comp',bk:'accel'},
+    jerk:  {p:'jerk_psr',c:'jerk_comp',bk:'jerk'},
+  };
+  const isDual=!!dualTabs[pView];
+  const mg={l:62,r:18,t:isDual?28:16,b:34};
   const pw=W-mg.l-mg.r,ph=H-mg.t-mg.b;
 
   // Y bounds
   let yMn,yMx;
-  if(isRV){
-    [yMn,yMx]=pCache.b.radvel;
+  if(isDual){
+    [yMn,yMx]=pCache.b[dualTabs[pView].bk];
   } else {
     [yMn,yMx]=pCache.b[pView];
   }
@@ -929,21 +1157,19 @@ function drawPlot(curM){
     ctx.beginPath();ctx.moveTo(mg.l,ty(0));ctx.lineTo(mg.l+pw,ty(0));ctx.stroke();
   }
 
-  if(isRV){
+  if(isDual){
     // Draw two curves: pulsar (blue) and companion (orange)
-    const dp=pCache.v.vr_psr, dc=pCache.v.vr_comp;
-    // Companion curve
+    const dt2=dualTabs[pView];
+    const dp=pCache.v[dt2.p], dc=pCache.v[dt2.c];
     ctx.strokeStyle='#ff8844';ctx.lineWidth=2;ctx.lineJoin='round';
     ctx.beginPath();
     dc.forEach((v,k)=>k===0?ctx.moveTo(tx(k),ty(v)):ctx.lineTo(tx(k),ty(v)));
     ctx.stroke();
-    // Pulsar curve (on top)
     ctx.strokeStyle='#4da6ff';ctx.lineWidth=2;
     ctx.beginPath();
     dp.forEach((v,k)=>k===0?ctx.moveTo(tx(k),ty(v)):ctx.lineTo(tx(k),ty(v)));
     ctx.stroke();
 
-    // Phase marker with dots on both curves
     const phase=(curM%TAU+TAU)%TAU/TAU;
     const kC=Math.round(phase*pCache.N);
     if(kC>=0&&kC<=pCache.N){
@@ -958,7 +1184,6 @@ function drawPlot(curM){
       ctx.beginPath();ctx.arc(xM,ty(dc[kC]||0),4.5,0,TAU);ctx.fill();
     }
 
-    // Legend
     ctx.font='11px -apple-system,sans-serif';
     ctx.fillStyle='#4da6ff';ctx.fillRect(mg.l+8,mg.t+3,14,3);
     ctx.fillStyle='#8b949e';ctx.textAlign='left';
@@ -1006,7 +1231,9 @@ function drawPlot(curM){
 
   // Y-axis label
   ctx.save();ctx.translate(12,mg.t+ph/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';
-  const yl={shapiro:'Shapiro (\u03BCs)',roemer:'Roemer (ms)',einstein:'Einstein (ms)',total:'Total (ms)',radvel:'Radial Velocity (km/s)'};
+  const yl={shapiro:'Shapiro (\u03BCs)',roemer:'Roemer (ms)',einstein:'Einstein (ms)',total:'Total (ms)',
+    radvel:'Radial Velocity (km/s)',pdop:'P\u2090\u209A\u209A / P\u2080',
+    accel:'Acceleration (m/s\u00B2)',jerk:'Jerk (m/s\u00B3)'};
   ctx.fillText(yl[pView]||'',0,0);ctx.restore();
 }
 
@@ -1024,9 +1251,29 @@ function onChange(){
 document.getElementById('preset').addEventListener('change',ev=>{
   const p=PRE[ev.target.value];
   if(!p)return;
-  savedPb_h=null; savedE=null;  // clear evolve stash
-  document.getElementById('evolve-sel').value='';  // reset dropdown
+  savedPb_h=null; savedE=null;
+  document.getElementById('evolve-sel').value='';
+  if(ghostPLn){ghostPLn.visible=false; ghostCLn.visible=false;}
+  // Set companion type from preset
+  if(p.ctype){
+    compTypeOverride=p.ctype;
+    document.getElementById('comp-type-sel').value=p.ctype;
+  } else {
+    compTypeOverride='auto';
+    document.getElementById('comp-type-sel').value='auto';
+  }
+  compType=''; // force rebuild
+  // Update reference link
+  const refEl=document.getElementById('ref-link');
+  if(p.ref){refEl.textContent=p.ref;refEl.href=p.ads||'#';refEl.style.display='';}
+  else{refEl.style.display='none';}
   setSliders(p);onChange();
+});
+
+document.getElementById('comp-type-sel').addEventListener('change',ev=>{
+  compTypeOverride=ev.target.value;
+  compType=''; // force rebuild
+  if(D) updateCompanionType(D.m2);
 });
 
 document.getElementById('play-btn').addEventListener('click',()=>{
@@ -1035,8 +1282,8 @@ document.getElementById('play-btn').addEventListener('click',()=>{
   if(playing)lastT=null;
 });
 
-// Logarithmic speed: slider 0-100 maps to 0.01x - 50x, midpoint=2x
-function sliderToSpeed(v){ return Math.pow(10,-0.0001806*v*v+0.05505*v-2); }
+// Logarithmic speed: slider 0-100 maps to 0.01x - 1000x, midpoint=2x
+function sliderToSpeed(v){ return Math.pow(10,0.0000796*v*v+0.04204*v-2); }
 document.getElementById('spd-sl').addEventListener('input',ev=>{
   spd=sliderToSpeed(parseFloat(ev.target.value));
   document.getElementById('spd-v').textContent=spd<0.1?spd.toFixed(3)+'x':spd<1?spd.toFixed(2)+'x':spd.toFixed(1)+'x';
@@ -1045,6 +1292,10 @@ document.getElementById('spd-sl').addEventListener('input',ev=>{
 document.getElementById('sun-toggle').addEventListener('change',ev=>{
   showSun=ev.target.checked;
   if(sunMesh) sunMesh.visible=showSun;
+});
+
+document.getElementById('sky-toggle').addEventListener('change',ev=>{
+  if(skyPlaneGrp) skyPlaneGrp.visible=ev.target.checked;
 });
 
 document.getElementById('grid-toggle').addEventListener('change',ev=>{
@@ -1063,7 +1314,7 @@ document.getElementById('evolve-sel').addEventListener('change',ev=>{
   const niE=document.getElementById('n-e');
 
   if(!val){
-    // "— now —" selected: restore originals
+    // "— now —" selected: restore originals, hide ghost
     if(savedPb_h!==null){
       P.Pb_h=savedPb_h; P.e=savedE;
       if(slPb){slPb.value=savedPb_h; niPb.value=savedPb_h;}
@@ -1071,15 +1322,17 @@ document.getElementById('evolve-sel').addEventListener('change',ev=>{
       savedPb_h=null; savedE=null;
       onChange();
     }
+    ghostPLn.visible=false; ghostCLn.visible=false;
     return;
   }
 
   const frac=parseFloat(val);
   if(!frac||!D) return;
 
-  // Stash originals on first evolve (always evolve from the originals, not from a previous evolution)
+  // Stash originals on first evolve
   if(savedPb_h===null){ savedPb_h=P.Pb_h; savedE=P.e; }
-  // Evolve from the saved originals, not the current (possibly already-evolved) values
+
+  // Evolve from saved originals
   const base={...P, Pb_h:savedPb_h, e:savedE};
   const evolved=evolveGW(base,frac);
   if(!evolved) return;
@@ -1088,6 +1341,36 @@ document.getElementById('evolve-sel').addEventListener('change',ev=>{
   if(slPb){slPb.value=evolved.Pb_h; niPb.value=evolved.Pb_h.toPrecision(6);}
   if(slE){slE.value=evolved.e; niE.value=evolved.e.toPrecision(6);}
   onChange();
+
+  // Build ghost orbit AFTER onChange so we can compute the size ratio
+  // The current (evolved) orbit uses normalised a=1 scaled by VS.
+  // The ghost must be larger by (a_original / a_evolved).
+  const origD=calc({...P, Pb_h:savedPb_h, e:savedE});
+  const evolD=D; // D was just recomputed by onChange()
+  const aRatio=origD.a_ls/evolD.a_ls; // >1 since original orbit is larger
+  buildGhostOrbit({...P, Pb_h:savedPb_h, e:savedE}, aRatio);
+});
+
+function buildGhostOrbit(p, aRatio){
+  // Draw the original orbit scaled by aRatio relative to the current (evolved) orbit.
+  // The current orbit is drawn at normalised a=1 * VS, so the ghost is at a=aRatio * VS.
+  const d=calc(p);
+  const N=240, pA=[], cA=[];
+  const scale=VS*aRatio;  // ghost is aRatio times larger than current orbit
+  for(let k=0;k<=N;k++){
+    const E=k/N*TAU, pt=orb3(E,d.e,d.w,d.i,d.Omega);
+    const f1=(d.m2/d.Mt)*scale, f2=(d.m1/d.Mt)*scale;
+    pA.push(pt.x*f1,pt.y*f1,pt.z*f1);
+    cA.push(-pt.x*f2,-pt.y*f2,-pt.z*f2);
+  }
+  ghostPLn.geometry.dispose(); ghostCLn.geometry.dispose();
+  const gp=new LineGeometry(); gp.setPositions(pA); ghostPLn.geometry=gp;
+  const gc=new LineGeometry(); gc.setPositions(cA); ghostCLn.geometry=gc;
+  ghostPLn.visible=true; ghostCLn.visible=true;
+}
+
+document.getElementById('reset-view-btn').addEventListener('click',()=>{
+  snapCamToObserver();
 });
 
 document.getElementById('lock-btn').addEventListener('click',()=>{
@@ -1165,6 +1448,12 @@ function frame(t){
 buildSliders();
 init3();
 setSliders(PRE.J0737);
+// Set initial reference + companion type
+const initP=PRE.J0737;
+const refEl=document.getElementById('ref-link');
+refEl.textContent=initP.ref;refEl.href=initP.ads;
+compTypeOverride=initP.ctype||'auto';
+document.getElementById('comp-type-sel').value=compTypeOverride;
 onChange();
 requestAnimationFrame(frame);
 </script>
